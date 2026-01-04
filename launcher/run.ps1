@@ -1,3 +1,5 @@
+Write-Host ">>> run.ps1 iniciado"
+
 param (
     [string]$Target
 )
