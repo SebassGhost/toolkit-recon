@@ -1,28 +1,21 @@
-param (
-    [string]$Target
-)
+Write-Host "=== Toolkit Recon iniciado ==="
 
-Write-Host ">>> Toolkit Recon iniciado"
-
-if (-not $Target) {
+if ($args.Count -eq 0) {
     Write-Host "Uso: .\run.ps1 example.com"
-    Read-Host "Presiona ENTER para salir"
     exit
 }
 
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$Target = $args[0]
+$Root = Resolve-Path "$PSScriptRoot\.."
 
-$code = @"
+Write-Host "Target: $Target"
+Write-Host "Root: $Root"
+
+python -c "
 import sys
-sys.path.insert(0, r"$projectRoot")
-
+sys.path.insert(0, r'$Root')
 from recon.domain_enum.domain_enum import run
+print(run('$Target'))
+"
 
-result = run("$Target")
-print(result)
-"@
-
-python -c $code
-
-Write-Host ">>> Ejecución finalizada"
-Read-Host "Presiona ENTER para salir"
+Write-Host "=== Fin ==="
