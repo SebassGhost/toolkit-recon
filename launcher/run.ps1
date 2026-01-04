@@ -14,8 +14,9 @@ Write-Host "Root: $Root"
 python -c "
 import sys
 sys.path.insert(0, r'$Root')
-from recon.domain_enum.domain_enum import run
-print(run('$Target'))
+from recon.recon_all import run_all
+print(run_all('$Target'))
+
 "
 
 Write-Host "=== Fin ==="
