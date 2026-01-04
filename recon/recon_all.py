@@ -1,10 +1,13 @@
-from recon.domain_enum.domain_enum import run as domain_enum
-# luego agregamos más
+from recon.domain_enum.domain_enum import run as domain_enum_run
+# más módulos se agregarán aquí
 
 def run_all(target):
-    results = {}
+    results = {
+        "target": target,
+        "recon": {}
+    }
 
-    print("[*] Domain enumeration...")
-    results["domain_enum"] = domain_enum(target)
+    print("[*] Running domain enumeration...")
+    results["recon"]["domain_enum"] = domain_enum_run(target)
 
     return results
