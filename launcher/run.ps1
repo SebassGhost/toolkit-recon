@@ -2,21 +2,16 @@ param (
     [string]$Target
 )
 
-Write-Host ">>> run.ps1 iniciado"
-Write-Host ">>> Target:" $Target
+if (-not $Target) {
+    Write-Host "Uso: ./run.ps1 <target>"
+    exit
+}
 
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
-Write-Host ">>> Project root:" $ProjectRoot
+Write-Host "[*] Ejecutando toolkit-recon contra $Target"
 
-$pythonCode = @"
-import sys
-sys.path.insert(0, r"$ProjectRoot")
-
+python - <<EOF
 from recon.domain_enum.domain_enum import run
-import json
 
 result = run("$Target")
-print(json.dumps(result, indent=2))
-"@
-
-python -c $pythonCode
+print(result)
+EOF
