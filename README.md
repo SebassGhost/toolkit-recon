@@ -34,5 +34,7 @@ El autor no se hace responsable del uso indebido.
 ## Instalación
 
 git clone https://github.com/SebassGhost/toolkit-recon
+
 cd toolkit-recon
+
 pip install -r requirements.txt
