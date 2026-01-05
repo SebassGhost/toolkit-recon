@@ -55,7 +55,7 @@ chmod +x launcher/run.sh
 Los resultados se almacenan automáticamente en:
 output/<target>/recon.json
 
-Módulos implementados
+## Módulos implementados
  ### Domain Enumeration
 
 ·Resolución DNS
