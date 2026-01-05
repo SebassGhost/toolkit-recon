@@ -1,54 +1,35 @@
-import requests
+import json
 import os
 
-def load_wordlist():
-    wordlist_path = os.path.join(
-        os.path.dirname(__file__),
-        "common_paths.txt"
-    )
-    with open(wordlist_path, "r", encoding="utf-8") as f:
-        return [line.strip() for line in f if line.strip()]
+from recon.domain_enum.domain_enum import run as domain_enum_run
+from recon.subdomain_enum.sub_enum import run as subdomain_enum_run
+from recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 
-def run(target):
-    results = []
-    paths = load_wordlist()
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Recon Toolkit)",
-        "Accept": "*/*"
-    }
-
-    schemes = ["https", "http"]
-
-    for scheme in schemes:
-        base_url = f"{scheme}://{target}"
-
-        for path in paths:
-            url = f"{base_url}/{path}"
-            try:
-                r = requests.get(
-                    url,
-                    headers=headers,
-                    timeout=4,
-                    allow_redirects=True
-                )
-
-                if r.status_code < 400:
-                    results.append({
-                        "url": url,
-                        "status": r.status_code,
-                        "length": len(r.text)
-                    })
-
-            except requests.RequestException:
-                continue
-
-        # Si HTTPS funciona, no probamos HTTP
-        if results and scheme == "https":
-            break
-
-    return {
-        "module": "endpoint_discovery",
+def run_all(target):
+    results = {
         "target": target,
-        "results": results
+        "recon": {}
     }
+
+    print("[*] Running domain enumeration...")
+    results["recon"]["domain_enum"] = domain_enum_run(target)
+
+    print("[*] Running subdomain enumeration...")
+    results["recon"]["subdomain_enum"] = subdomain_enum_run(target)
+
+    print("[*] Running endpoint discovery...")
+    results["recon"]["endpoint_discovery"] = endpoint_discovery_run(target)
+
+    # Crear carpeta de salida
+    output_dir = os.path.join("output", target)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Guardar resultados en JSON
+    output_file = os.path.join(output_dir, "recon.json")
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=4)
+
+    print(f"[+] Results saved to {output_file}")
+
+    return results
