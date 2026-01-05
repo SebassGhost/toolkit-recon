@@ -18,6 +18,12 @@ def run_all(target):
 
     print("[*] Running subdomain enumeration...")
     results["recon"]["subdomain_enum"] = subdomain_enum_run(target)
+    
+    print("[*] Running endpoint discovery...")
+    results["recon"]["endpoint_discovery"] = endpoint_discovery_run(target)
+   
+    print("[*] Running tech fingerprint...")
+    results["recon"]["tech_fingerprint"] = tech_fingerprint_run(target)
 
     # Crear carpeta de salida
     output_dir = os.path.join("output", target)
