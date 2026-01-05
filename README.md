@@ -16,7 +16,7 @@ El autor no se hace responsable del uso indebido.
 
 
 
-Características principales
+## Características principales
 
 ·Arquitectura modular y escalable
 
