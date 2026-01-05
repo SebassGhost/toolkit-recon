@@ -1,1 +1,10 @@
-
+admin
+login
+api
+dashboard
+panel
+config
+uploads
+robots.txt
+.svn
+.git
