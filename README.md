@@ -6,7 +6,7 @@ Framework modular de reconocimiento (Reconnaissance) orientado a pentesting, esc
 Este proyecto está diseñado como toolkit personal y educativo, siguiendo prácticas reales usadas en frameworks profesionales de seguridad ofensiva.
 
 
-###Aviso legal
+## Aviso legal
 
 Este toolkit fue creado únicamente con fines educativos y de aprendizaje.
 
