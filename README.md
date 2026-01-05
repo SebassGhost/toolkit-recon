@@ -13,3 +13,17 @@ Este toolkit fue creado únicamente con fines educativos y de aprendizaje.
 Úsalo solo en activos propios o con autorización explícita.
 
 El autor no se hace responsable del uso indebido.
+
+
+
+Características principales
+
+·Arquitectura modular y escalable
+
+·Orquestador central (recon_all.py)
+
+·Ejecución multiplataforma
+
+·Resultados persistentes en JSON
+
+·Diseño orientado a portafolio profesional
