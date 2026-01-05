@@ -1,35 +1,24 @@
-import json
-import os
+import requests
 
-from recon.domain_enum.domain_enum import run as domain_enum_run
-from recon.subdomain_enum.sub_enum import run as subdomain_enum_run
-from recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
-
-
-def run_all(target):
+def run(target):
     results = {
+        "module": "endpoint_discovery",
         "target": target,
-        "recon": {}
+        "endpoints": []
     }
 
-    print("[*] Running domain enumeration...")
-    results["recon"]["domain_enum"] = domain_enum_run(target)
+    paths = ["/admin", "/login", "/dashboard"]
 
-    print("[*] Running subdomain enumeration...")
-    results["recon"]["subdomain_enum"] = subdomain_enum_run(target)
-
-    print("[*] Running endpoint discovery...")
-    results["recon"]["endpoint_discovery"] = endpoint_discovery_run(target)
-
-    # Crear carpeta de salida
-    output_dir = os.path.join("output", target)
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Guardar resultados en JSON
-    output_file = os.path.join(output_dir, "recon.json")
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=4)
-
-    print(f"[+] Results saved to {output_file}")
+    for path in paths:
+        url = f"http://{target}{path}"
+        try:
+            r = requests.get(url, timeout=3)
+            results["endpoints"].append({
+                "path": path,
+                "status": r.status_code
+            })
+        except requests.RequestException:
+            continue
 
     return results
+
