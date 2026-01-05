@@ -79,3 +79,7 @@ Módulos implementados
 ·Identificación de tecnologías
 
 ·Headers HTTP
+
+### nota final
+
+Este proyecto está pensado como base real de crecimiento hacia un toolkit de nivel profesional. Cada módulo añadido representa una habilidad práctica en pentesting.
