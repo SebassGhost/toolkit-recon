@@ -4,6 +4,7 @@ import os
 from recon.domain_enum.domain_enum import run as domain_enum_run
 from recon.subdomain_enum.sub_enum import run as subdomain_enum_run
 from recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
+from recon.tech_fingerprint.fingerprint import run as tech_fingerprint_run
 # más módulos se agregarán aquí
 
 def run_all(target):
