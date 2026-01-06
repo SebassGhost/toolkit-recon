@@ -16,18 +16,37 @@ def is_interesting(path, status, length):
         return False
     if length == 0:
         return False
+
     for k in INTERESTING_KEYWORDS:
         if k in path.lower():
             return True
+
     return False
 
 
 def run(target):
     base_url = f"https://{target}"
     paths = load_wordlist()
-
     results = []
 
+    # -------------------------
+    # Baseline (soft-404 detect)
+    # -------------------------
+    try:
+        fake = requests.get(
+            f"{base_url}/this_should_not_exist_98765",
+            timeout=6,
+            allow_redirects=False
+        )
+        baseline_status = fake.status_code
+        baseline_length = len(fake.content)
+    except Exception:
+        baseline_status = None
+        baseline_length = None
+
+    # -------------------------
+    # Endpoint discovery
+    # -------------------------
     for path in paths:
         url = urljoin(base_url, path)
 
@@ -46,18 +65,49 @@ def run(target):
             "interesting": False
         }
 
-        # HEAD support check
+        # -------------------------
+        # Soft-404 filter
+        # -------------------------
+        if (
+            baseline_status is not None
+            and r.status_code == baseline_status
+            and len(r.content) == baseline_length
+        ):
+            continue
+
+        # -------------------------
+        # HEAD support
+        # -------------------------
         try:
-            h = requests.head(url, timeout=4)
+            h = requests.head(url, timeout=4, allow_redirects=False)
             if h.status_code < 500:
                 entry["methods"].append("HEAD")
         except Exception:
             pass
 
+        # -------------------------
+        # OPTIONS → allowed methods
+        # -------------------------
+        try:
+            o = requests.options(url, timeout=4)
+            allow = o.headers.get("Allow")
+            if allow:
+                entry["methods"] = list(set(
+                    entry["methods"] + [m.strip() for m in allow.split(",")]
+                ))
+        except Exception:
+            pass
+
+        # -------------------------
+        # Interesting detection
+        # -------------------------
         entry["interesting"] = is_interesting(
             path, entry["status"], entry["length"]
         )
 
+        # -------------------------
+        # Noise filter
+        # -------------------------
         if entry["status"] != 404:
             results.append(entry)
 
@@ -66,3 +116,4 @@ def run(target):
         "target": target,
         "results": results
     }
+
