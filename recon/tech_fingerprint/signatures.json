@@ -1,21 +1,12 @@
 {
-    "WordPress": [
-        "wp-content",
-        "wp-includes"
-    ],
-    "Laravel": [
-        "laravel_session"
-    ],
-    "Django": [
-        "csrftoken",
-        "django"
-    ],
-    "React": [
-        "react",
-        "__REACT_DEVTOOLS"
-    ],
-    "Cloudflare": [
-        "cloudflare"
-    ]
+  "Cloudflare": [
+    { "header": "server", "value": "cloudflare", "type": "cdn" },
+    { "header": "cf-ray", "value": "", "type": "cdn" }
+  ],
+  "Nginx": [
+    { "header": "server", "value": "nginx", "type": "technology" }
+  ],
+  "Apache": [
+    { "header": "server", "value": "apache", "type": "technology" }
+  ]
 }
-
