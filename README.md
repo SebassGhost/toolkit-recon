@@ -87,4 +87,7 @@ Este proyecto está pensado como base real de crecimiento hacia un toolkit de ni
 
 ## licencia
 
-MIT License
+## License
+
+This project is licensed under the MIT License.
+See the LICENSE file for details.
