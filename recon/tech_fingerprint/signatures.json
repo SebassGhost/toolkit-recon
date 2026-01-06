@@ -1,1 +1,21 @@
+{
+    "WordPress": [
+        "wp-content",
+        "wp-includes"
+    ],
+    "Laravel": [
+        "laravel_session"
+    ],
+    "Django": [
+        "csrftoken",
+        "django"
+    ],
+    "React": [
+        "react",
+        "__REACT_DEVTOOLS"
+    ],
+    "Cloudflare": [
+        "cloudflare"
+    ]
+}
 
