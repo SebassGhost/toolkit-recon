@@ -82,4 +82,9 @@ output/<target>/recon.json
 
 ### nota final
 
-Este proyecto está pensado como base real de crecimiento hacia un toolkit de nivel profesional. Cada módulo añadido representa una habilidad práctica en pentesting.
+Este proyecto está pensado como base real de crecimiento hacia un toolkit de nivel profesional. Cada módulo añadido representa una habilidad práctica en pentesting
+
+
+## licencia
+
+MIT License
