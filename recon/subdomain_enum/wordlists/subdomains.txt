@@ -1,1 +1,8 @@
-
+www
+mail
+api
+dev
+test
+admin
+cdn
+beta
