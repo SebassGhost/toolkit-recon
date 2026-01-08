@@ -1,32 +1,23 @@
-import dns.resolver
+import socket
 import random
 import string
 
 
-def resolve_a(domain: str):
-    """
-    Resolve A records for a domain.
-    Returns list of IPs or None.
-    """
+def resolve(domain):
     try:
-        answers = dns.resolver.resolve(domain, "A")
-        return [str(rdata) for rdata in answers]
-    except Exception:
+        return socket.gethostbyname(domain)
+    except socket.gaierror:
         return None
 
 
-def generate_random_subdomain(base_domain: str) -> str:
+def detect_wildcard(target):
     """
-    Generate a random subdomain to test wildcard DNS.
+    Generates a random subdomain and checks if it resolves.
+    If it does, the domain uses wildcard DNS.
     """
-    rand = "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
-    return f"{rand}.{base_domain}"
+    random_label = "".join(
+        random.choices(string.ascii_lowercase + string.digits, k=12)
+    )
+    test_domain = f"{random_label}.{target}"
 
-
-def detect_wildcard(domain: str):
-    """
-    Detect wildcard DNS by resolving a random subdomain.
-    Returns list of wildcard IPs or None.
-    """
-    fake_sub = generate_random_subdomain(domain)
-    return resolve_a(fake_sub)
+    return resolve(test_domain)  # None = no wildcard
