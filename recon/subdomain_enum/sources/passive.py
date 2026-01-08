@@ -1,14 +1,12 @@
 import requests
-import re
 
 
-def from_crtsh(domain):
+def from_crtsh(target):
     """
-    Obtiene subdominios desde crt.sh (certificados SSL públicos)
+    Fetch subdomains from crt.sh
     """
+    url = f"https://crt.sh/?q=%25.{target}&output=json"
     subdomains = set()
-
-    url = f"https://crt.sh/?q=%25.{domain}&output=json"
 
     try:
         r = requests.get(url, timeout=10)
@@ -16,25 +14,40 @@ def from_crtsh(domain):
             return subdomains
 
         data = r.json()
-
         for entry in data:
-            names = entry.get("name_value", "")
-            for name in names.split("\n"):
-                if "*" not in name:
-                    subdomains.add(name.strip())
-
+            name = entry.get("name_value", "")
+            for sub in name.split("\n"):
+                if sub.endswith(target):
+                    subdomains.add(sub.strip())
     except Exception:
         pass
 
     return subdomains
 
 
-def run(domain):
+def from_threatcrowd(target):
     """
-    Ejecuta todas las técnicas pasivas
+    Fetch subdomains from ThreatCrowd
     """
+    url = f"https://www.threatcrowd.org/searchApi/v2/domain/report/?domain={target}"
+    subdomains = set()
+
+    try:
+        r = requests.get(url, timeout=10)
+        data = r.json()
+
+        for sub in data.get("subdomains", []):
+            subdomains.add(sub.strip())
+    except Exception:
+        pass
+
+    return subdomains
+
+
+def run(target):
     results = set()
 
-    results.update(from_crtsh(domain))
+    results.update(from_crtsh(target))
+    results.update(from_threatcrowd(target))
 
-    return results
+    return list(results)
