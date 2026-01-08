@@ -1,3 +1,5 @@
+from utils.output import save_output
+
 #!/usr/bin/env python3
 import sys
 import time
