@@ -1,5 +1,3 @@
-from utils.output import save_output
-
 #!/usr/bin/env python3
 import sys
 import time
@@ -88,7 +86,11 @@ def run_subdomain_enum():
 
     show_subdomains(data)
 
+    from utils.output import save_output
+    save_output(target, "subdomains", data)
+
     print(C.GREEN + "\n[✓] Subdomain Enumeration finished" + C.RESET)
+
 
 
 def run_endpoint_discovery():
