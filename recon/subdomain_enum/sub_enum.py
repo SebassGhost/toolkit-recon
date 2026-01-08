@@ -1,10 +1,12 @@
 import os
-
 from .resolver import resolve, detect_wildcard
-from .passive import run as passive_enum
+from .sources.passive import run as passive_enum
 
-
-WORDLIST_FILE = os.path.join(os.path.dirname(__file__), "wordlist.txt")
+WORDLIST_FILE = os.path.join(
+    os.path.dirname(__file__),
+    "wordlists",
+    "subdomains.txt"
+)
 
 
 def load_wordlist():
@@ -26,9 +28,8 @@ def run(target, use_passive=True):
     else:
         print("[+] No wildcard DNS detected")
 
-    # Active brute-force
+    # — Active / Bruteforce
     wordlist = load_wordlist()
-
     for word in wordlist:
         subdomain = f"{word}.{target}"
         ip = resolve(subdomain)
@@ -46,7 +47,7 @@ def run(target, use_passive=True):
             "source": "brute"
         })
 
-    # Passive enumeration
+    # — Passive sources (crt.sh, ThreatCrowd, etc)
     if use_passive:
         passive_subs = passive_enum(target)
 
