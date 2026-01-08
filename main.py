@@ -1,6 +1,7 @@
 from recon.subdomain_enum.sub_enum import run as subdomain_enum
 from recon.endpoint_discovery.endpoints import run as endpoint_discovery
-from recon.tech_fingerprint.tech import run as tech_fingerprint
+from recon.tech_fingerprint.fingerprint import run as tech_fingerprint
+
 
 
 def banner():
