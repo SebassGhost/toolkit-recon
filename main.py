@@ -103,17 +103,18 @@ def run_tech_fingerprint():
 
 def run_recon_all():
     print(C.YELLOW + "\n[+] Running FULL RECON\n" + C.RESET)
-
+    from utils.output import save_output
     from recon.subdomain_enum.sub_enum import run as sub_run
 
     target = ask_target()
     if not target:
         return
-
+# --- Subdomain Enumeration ---
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
     sub_data = sub_run(target)
     show_subdomains(sub_data)
-
+    save_output(target, "subdomains", sub_data)
+    
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
 
 
