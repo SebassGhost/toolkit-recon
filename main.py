@@ -12,7 +12,7 @@ def banner():
    ██║   ╚██████╔╝╚██████╔╝███████╗██║  ██╗██║   ██║   
    ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝   ╚═╝   
 
-            Recon Toolkit — modular & extensible
+             By SebassGhost
     """)
 
 
