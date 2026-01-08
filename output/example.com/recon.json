@@ -1,0 +1,53 @@
+{
+    "target": "example.com",
+    "recon": {
+        "domain_enum": {
+            "module": "domain_enum",
+            "target": "example.com",
+            "results": [
+                {
+                    "domain": "example.com",
+                    "ip": "104.18.27.120"
+                }
+            ]
+        },
+        "subdomain_enum": {
+            "module": "subdomain_enum",
+            "target": "example.com",
+            "results": [
+                "www.example.com"
+            ]
+        },
+        "endpoint_discovery": {
+            "module": "endpoint_discovery",
+            "target": "example.com",
+            "endpoints": [
+                {
+                    "endpoint": "/admin",
+                    "status": 404
+                },
+                {
+                    "endpoint": "/login",
+                    "status": 404
+                },
+                {
+                    "endpoint": "/dashboard",
+                    "status": 404
+                },
+                {
+                    "endpoint": "/api",
+                    "status": 404
+                },
+                {
+                    "endpoint": "/robots.txt",
+                    "status": 404
+                }
+            ]
+        },
+        "tech_fingerprint": {
+            "module": "subdomain_enum",
+            "target": "example.com",
+            "results": []
+        }
+    }
+}
