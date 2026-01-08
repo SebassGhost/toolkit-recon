@@ -1,22 +1,36 @@
-from recon.subdomain_enum.sub_enum import run as subdomain_enum
-from recon.endpoint_discovery.endpoints import run as endpoint_discovery
-from recon.tech_fingerprint.fingerprint import run as tech_fingerprint
+#!/usr/bin/env python3
+import sys
+import time
+
+# =========================
+# COLORS (UX)
+# =========================
+class C:
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    RESET = "\033[0m"
 
 
-
+# =========================
+# BANNER
+# =========================
 def banner():
-    print(r"""
-████████╗ ██████╗  ██████╗ ██╗     ██╗  ██╗██╗████████╗
-╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██║ ██╔╝██║╚══██╔══╝
-   ██║   ██║   ██║██║   ██║██║     █████╔╝ ██║   ██║   
-   ██║   ██║   ██║██║   ██║██║     ██╔═██╗ ██║   ██║   
-   ██║   ╚██████╔╝╚██████╔╝███████╗██║  ██╗██║   ██║   
-   ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝   ╚═╝   
+    print(C.BLUE + r"""
+████████╗ ██████╗  ██████╗ ██╗     ██╗  ██╗████████╗
+╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██║ ██╔╝╚══██╔══╝
+   ██║   ██║   ██║██║   ██║██║     █████╔╝    ██║   
+   ██║   ██║   ██║██║   ██║██║     ██╔═██╗    ██║   
+   ██║   ╚██████╔╝╚██████╔╝███████╗██║  ██╗   ██║   
+   ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   
+    """ + C.RESET)
+    print("By SebassGhost\n")
 
-             By SebassGhost
-    """)
 
-
+# =========================
+# MENU
+# =========================
 def menu():
     print("[1] Subdomain Enumeration")
     print("[2] Endpoint Discovery")
@@ -25,39 +39,113 @@ def menu():
     print("[0] Exit")
 
 
-def get_choice():
-    return input("\nSelect an option: ").strip()
+# =========================
+# HELPERS
+# =========================
+def ask_target():
+    target = input("\nTarget domain: ").strip()
+    if not target:
+        print(C.RED + "[-] Target cannot be empty" + C.RESET)
+        return None
+    return target
 
 
+def pause():
+    input(C.YELLOW + "\nPress Enter to continue..." + C.RESET)
+
+
+# =========================
+# OUTPUT FORMATTERS (UX)
+# =========================
+def show_subdomains(data):
+    results = data.get("results", [])
+
+    print(C.GREEN + f"\n[✔] {len(results)} subdomains found\n" + C.RESET)
+
+    for r in results:
+        sub = r.get("subdomain", "N/A")
+        ip = r.get("ip", "N/A")
+        src = r.get("source", "unknown")
+        print(f" - {sub:30} {ip:15} ({src})")
+
+
+# =========================
+# MODULE RUNNERS
+# =========================
+def run_subdomain_enum():
+    from recon.subdomain_enum.sub_enum import run
+
+    target = ask_target()
+    if not target:
+        return
+
+    print(C.YELLOW + "\n[+] Running Subdomain Enumeration..." + C.RESET)
+    print(f"[+] Target: {target}\n")
+
+    data = run(target)
+
+    show_subdomains(data)
+
+    print(C.GREEN + "\n[✓] Subdomain Enumeration finished" + C.RESET)
+
+
+def run_endpoint_discovery():
+    print(C.YELLOW + "\n[!] Endpoint Discovery not implemented yet" + C.RESET)
+
+
+def run_tech_fingerprint():
+    print(C.YELLOW + "\n[!] Tech Fingerprinting not implemented yet" + C.RESET)
+
+
+def run_recon_all():
+    print(C.YELLOW + "\n[+] Running FULL RECON\n" + C.RESET)
+
+    from recon.subdomain_enum.sub_enum import run as sub_run
+
+    target = ask_target()
+    if not target:
+        return
+
+    print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
+    sub_data = sub_run(target)
+    show_subdomains(sub_data)
+
+    print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+
+
+# =========================
+# MAIN LOOP
+# =========================
 def main():
-    banner()
-    menu()
-    choice = get_choice()
+    while True:
+        banner()
+        menu()
 
-    if choice == "1":
-        target = input("Target domain: ")
-        print(subdomain_enum(target))
+        choice = input("\nSelect an option: ").strip()
 
-    elif choice == "2":
-        target = input("Target domain: ")
-        print(endpoint_discovery(target))
+        if choice == "1":
+            run_subdomain_enum()
+            pause()
 
-    elif choice == "3":
-        target = input("Target domain: ")
-        print(tech_fingerprint(target))
+        elif choice == "2":
+            run_endpoint_discovery()
+            pause()
 
-    elif choice == "4":
-        target = input("Target domain: ")
-        print("[*] Running full recon...")
-        print(subdomain_enum(target))
-        print(endpoint_discovery(target))
-        print(tech_fingerprint(target))
+        elif choice == "3":
+            run_tech_fingerprint()
+            pause()
 
-    elif choice == "0":
-        print("Bye")
+        elif choice == "4":
+            run_recon_all()
+            pause()
 
-    else:
-        print("Invalid option")
+        elif choice == "0":
+            print(C.GREEN + "\nBye" + C.RESET)
+            sys.exit(0)
+
+        else:
+            print(C.RED + "\nInvalid option" + C.RESET)
+            time.sleep(1)
 
 
 if __name__ == "__main__":
