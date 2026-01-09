@@ -86,7 +86,7 @@ def run_subdomain_enum():
 
 
 def run_recon_all():
-    from toolkit_recon.recon.subdomain_enum.sub_enum import run
+    from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
     from toolkit_recon.utils.output import save_output
 
     target = ask_target()
@@ -94,11 +94,13 @@ def run_recon_all():
         return
 
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
-    data = run(target)
-    show_subdomains(data)
-    save_output(target, "subdomains", data)
+
+    sub_data = sub_run(target)
+    show_subdomains(sub_data)
+    save_output(target, "subdomains", sub_data)
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+
 
 
 # =========================
