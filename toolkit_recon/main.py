@@ -117,6 +117,12 @@ def main():
         if choice == "1":
             run_subdomain_enum()
             pause()
+        elif choice == "2":
+            run_endpoint_discovery()
+            pause()
+        elif choice == "3":
+            run_tech_fingerprint()
+            pause()
         elif choice == "4":
             run_recon_all()
             pause()
