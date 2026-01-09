@@ -95,7 +95,8 @@ def run_endpoint_discovery():
 
     print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
 
-    results = endpoint_run(target)
+    data = endpoint_run(target)
+    results = data.get("results", [])
 
     if not results:
         print(C.YELLOW + "[!] No endpoints found" + C.RESET)
@@ -112,8 +113,9 @@ def run_endpoint_discovery():
             f"{','.join(r.get('methods', []))}"
         )
 
-    save_output(target, "endpoints", results)
+    save_output(target, "endpoints", data)
 
+   
 
 def run_recon_all():
     from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
