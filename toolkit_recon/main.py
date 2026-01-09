@@ -124,20 +124,71 @@ def run_recon_all():
     if not target:
         return
 
+    # -------------------------
+    # Subdomain Enumeration
+    # -------------------------
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
+
     sub_data = sub_run(target)
     show_subdomains(sub_data)
+
     save_output(target, "subdomains", sub_data)
-    save_recon(target, "subdomain_enum", sub_data)   
+    save_recon(target, "subdomain_enum", sub_data)
 
-    print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
-    endpoint_data = endpoint_run(target)
-    save_output(target, "endpoints", endpoint_data)
-    save_recon(target, "endpoint_discovery", endpoint_data)  
+    subdomains = [
+        r["subdomain"]
+        for r in sub_data.get("results", [])
+    ]
 
-    save_recon(target, "tech_fingerprint", None)  
+    if not subdomains:
+        print(C.YELLOW + "[!] No subdomains found, skipping endpoint discovery" + C.RESET)
+        return
+
+    # -------------------------
+    # Endpoint Discovery (per subdomain)
+    # -------------------------
+    print(C.BLUE + "\n--- Endpoint Discovery (per subdomain) ---" + C.RESET)
+
+    endpoint_results = {}
+
+    for sub in subdomains:
+        print(C.BLUE + f"\n[*] Scanning endpoints on {sub}" + C.RESET)
+
+        data = endpoint_run(sub)
+
+        results = data.get("results", [])
+        interesting = [r for r in results if r.get("interesting")]
+
+        endpoint_results[sub] = {
+            "total": len(results),
+            "interesting": interesting
+        }
+
+        # Output individual por subdominio
+        safe_name = sub.replace(".", "_")
+        save_output(target, f"endpoints_{safe_name}", data)
+
+        # Consola → solo endpoints interesantes
+        if interesting:
+            print(C.GREEN + f"[+] {len(interesting)} interesting endpoints found" + C.RESET)
+            for r in interesting:
+                print(
+                    f"  - {r['path']:25} "
+                    f"[{r['status']}] "
+                    f"{','.join(r['methods'])}"
+                )
+        else:
+            print(C.YELLOW + "[!] No interesting endpoints found" + C.RESET)
+
+    save_recon(target, "endpoint_discovery", endpoint_results)
+
+    # Placeholder Tech Fingerprinting
+    save_recon(target, "tech_fingerprint", None)
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+
+    
+    
 
     
 
