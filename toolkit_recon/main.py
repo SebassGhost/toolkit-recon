@@ -20,10 +20,10 @@ def banner():
     print(C.BLUE + r"""
 ████████╗ ██████╗  ██████╗ ██╗     ██╗  ██╗████████╗
 ╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██║ ██╔╝╚══██╔══╝
-   ██║   ██║   ██║██║   ██║██║     █████╔╝    ██║   
-   ██║   ██║   ██║██║   ██║██║     ██╔═██╗    ██║   
-   ██║   ╚██████╔╝╚██████╔╝███████╗██║  ██╗   ██║   
-   ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   
+   ██║   ██║   ██║██║   ██║██║     █████╔╝    ██║
+   ██║   ██║   ██║██║   ██║██║     ██╔═██╗    ██║
+   ██║   ╚██████╔╝╚██████╔╝███████╗██║  ██╗   ██║
+   ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝
     """ + C.RESET)
     print("By SebassGhost\n")
 
@@ -73,19 +73,6 @@ def show_subdomains(data):
 # MODULE RUNNERS
 # =========================
 def run_subdomain_enum():
-    from toolkit_recon.recon.subdomain_enum.sub_enum import run
-    from toolkit_recon.utils.output import save_output
-
-    target = ask_target()
-    if not target:
-        return
-
-    data = run(target)
-    show_subdomains(data)
-    save_output(target, "subdomains", data)
-
-
-def run_recon_all():
     from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
     from toolkit_recon.utils.output import save_output
 
@@ -93,16 +80,66 @@ def run_recon_all():
     if not target:
         return
 
-    print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
+    data = sub_run(target)
+    show_subdomains(data)
+    save_output(target, "subdomains", data)
 
+
+def run_endpoint_discovery():
+    from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_run
+    from toolkit_recon.utils.output import save_output
+
+    target = ask_target()
+    if not target:
+        return
+
+    print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
+
+    results = endpoint_run(target)
+
+    if not results:
+        print(C.YELLOW + "[!] No endpoints found" + C.RESET)
+        return
+
+    interesting = [r for r in results if r.get("interesting")]
+
+    print(C.GREEN + f"\n[✔] {len(interesting)} interesting endpoints found\n" + C.RESET)
+
+    for r in interesting:
+        print(
+            f" - {r.get('path'):25} "
+            f"[{r.get('status')}] "
+            f"{','.join(r.get('methods', []))}"
+        )
+
+    save_output(target, "endpoints", results)
+
+
+def run_recon_all():
+    from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
+    from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_run
+    from toolkit_recon.utils.output import save_output, save_recon
+
+    target = ask_target()
+    if not target:
+        return
+
+    print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
     sub_data = sub_run(target)
     show_subdomains(sub_data)
     save_output(target, "subdomains", sub_data)
 
-    print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+    print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
+    endpoint_data = endpoint_run(target)
+    save_output(target, "endpoints", endpoint_data)
 
-def run_endpoint_discovery():
-    print(C.YELLOW + "\n[!] Endpoint Discovery not implemented yet" + C.RESET)
+    save_recon(target, {
+        "subdomain_enum": sub_data,
+        "endpoint_discovery": endpoint_data,
+        "tech_fingerprint": None
+    })
+
+    print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
 
 
 # =========================
@@ -122,7 +159,7 @@ def main():
             run_endpoint_discovery()
             pause()
         elif choice == "3":
-            run_tech_fingerprint()
+            print(C.YELLOW + "\n[!] Tech Fingerprinting not implemented yet" + C.RESET)
             pause()
         elif choice == "4":
             run_recon_all()
