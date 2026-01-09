@@ -126,71 +126,57 @@ def run_recon_all():
     if not target:
         return
 
-    # -------------------------
-    # Subdomain Enumeration
-    # -------------------------
+    # =========================
+    # SUBDOMAIN ENUM
+    # =========================
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
-
     sub_data = sub_run(target)
+
+    results = sub_data.get("results", [])
     show_subdomains(sub_data)
 
     save_output(target, "subdomains", sub_data)
     save_recon(target, "subdomain_enum", sub_data)
 
-    subdomains = [
-        r["subdomain"]
-        for r in sub_data.get("results", [])
-    ]
-
-    if not subdomains:
-        print(C.YELLOW + "[!] No subdomains found, skipping endpoint discovery" + C.RESET)
-        return
-
-    # -------------------------
-    # Endpoint Discovery (per subdomain)
-    # -------------------------
+    # =========================
+    # ENDPOINT DISCOVERY (per subdomain)
+    # =========================
     print(C.BLUE + "\n--- Endpoint Discovery (per subdomain) ---" + C.RESET)
 
-    endpoint_results = {}
+    all_endpoints = {}
 
-    for sub in subdomains:
-        print(C.BLUE + f"\n[*] Scanning endpoints on {sub}" + C.RESET)
+    for entry in results:
+        subdomain = entry.get("subdomain")
+        if not subdomain:
+            continue
 
-        data = endpoint_run(sub)
+        print(C.BLUE + f"\n[*] Scanning endpoints on {subdomain}" + C.RESET)
 
-        results = data.get("results", [])
-        interesting = [r for r in results if r.get("interesting")]
+        endpoints = endpoint_run(subdomain)
 
-        endpoint_results[sub] = {
-            "total": len(results),
-            "interesting": interesting
-        }
+        if not endpoints:
+            print(C.YELLOW + "    [!] No endpoints found" + C.RESET)
+            continue
 
-        # Output individual por subdominio
-        safe_name = sub.replace(".", "_")
-        save_output(target, f"endpoints_{safe_name}", data)
+        interesting = [e for e in endpoints if e.get("interesting")]
 
-        # Consola → solo endpoints interesantes
-        if interesting:
-            print(C.GREEN + f"[+] {len(interesting)} interesting endpoints found" + C.RESET)
-            for r in interesting:
-                print(
-                    f"  - {r['path']:25} "
-                    f"[{r['status']}] "
-                    f"{','.join(r['methods'])}"
-                )
-        else:
-            print(C.YELLOW + "[!] No interesting endpoints found" + C.RESET)
+        print(
+            C.GREEN
+            + f"    [✔] {len(interesting)} interesting endpoints found"
+            + C.RESET
+        )
 
-    save_recon(target, "endpoint_discovery", endpoint_results)
+        all_endpoints[subdomain] = endpoints
 
-    # Placeholder Tech Fingerprinting
-    save_recon(target, "tech_fingerprint", None)
+    save_output(target, "endpoints", all_endpoints)
+    save_recon(target, "endpoint_discovery", all_endpoints)
+
+    # =========================
+    # TECH FINGERPRINT (placeholder)
+    # =========================
+    save_recon(target, "tech_fingerprint", [])
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
-
-    
-    
 
     
 
