@@ -85,7 +85,7 @@ output/<target>/recon.json
 Este proyecto está pensado como base real de crecimiento hacia un toolkit de nivel profesional. Cada módulo añadido representa una habilidad práctica en pentesting
 
 
-## licencia
+
 
 ## License
 
