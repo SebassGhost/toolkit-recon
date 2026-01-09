@@ -124,9 +124,6 @@ def run(target: str):
         if entry["status"] != 404:
             results.append(entry)
 
-    return {
-        "module": "endpoint_discovery",
-        "target": target,
-        "total_checked": len(paths),
-        "results": results
-    }
+    return results
+
+       
