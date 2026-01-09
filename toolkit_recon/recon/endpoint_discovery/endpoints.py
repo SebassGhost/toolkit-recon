@@ -1,3 +1,4 @@
+import os
 import requests
 from urllib.parse import urljoin
 
@@ -5,27 +6,43 @@ INTERESTING_KEYWORDS = [
     "admin", "api", "login", "dashboard", "upload", "graphql"
 ]
 
+BASE_DIR = os.path.dirname(__file__)
+WORDLIST = os.path.join(BASE_DIR, "common_paths.txt")
 
+
+# -------------------------
+# Load wordlist
+# -------------------------
 def load_wordlist():
-    with open(__file__.replace("endpoints.py", "common_paths.txt"), "r") as f:
-        return [line.strip() for line in f if line.strip()]
+    with open(WORDLIST, "r", encoding="utf-8") as f:
+        return [
+            "/" + line.strip().lstrip("/")
+            for line in f
+            if line.strip() and not line.startswith("#")
+        ]
 
 
+# -------------------------
+# Interesting logic
+# -------------------------
 def is_interesting(path, status, length):
     if status not in [200, 301, 302, 401, 403]:
         return False
     if length == 0:
         return False
 
-    for k in INTERESTING_KEYWORDS:
-        if k in path.lower():
-            return True
-
-    return False
+    return any(k in path.lower() for k in INTERESTING_KEYWORDS)
 
 
-def run(target):
-    base_url = f"https://{target}"
+# -------------------------
+# Main runner
+# -------------------------
+def run(target: str):
+    if target.startswith("http"):
+        base_url = target.rstrip("/")
+    else:
+        base_url = f"https://{target}".rstrip("/")
+
     paths = load_wordlist()
     results = []
 
@@ -55,25 +72,24 @@ def run(target):
         except Exception:
             continue
 
-        entry = {
-            "path": path,
-            "status": r.status_code,
-            "length": len(r.content),
-            "type": r.headers.get("Content-Type", ""),
-            "redirect": r.headers.get("Location"),
-            "methods": ["GET"],
-            "interesting": False
-        }
-
-        # -------------------------
         # Soft-404 filter
-        # -------------------------
         if (
             baseline_status is not None
             and r.status_code == baseline_status
             and len(r.content) == baseline_length
         ):
             continue
+
+        entry = {
+            "path": path,
+            "url": url,
+            "status": r.status_code,
+            "length": len(r.content),
+            "content_type": r.headers.get("Content-Type", ""),
+            "redirect": r.headers.get("Location"),
+            "methods": ["GET"],
+            "interesting": False
+        }
 
         # -------------------------
         # HEAD support
@@ -92,7 +108,7 @@ def run(target):
             o = requests.options(url, timeout=4)
             allow = o.headers.get("Allow")
             if allow:
-                entry["methods"] = list(set(
+                entry["methods"] = sorted(set(
                     entry["methods"] + [m.strip() for m in allow.split(",")]
                 ))
         except Exception:
@@ -105,15 +121,12 @@ def run(target):
             path, entry["status"], entry["length"]
         )
 
-        # -------------------------
-        # Noise filter
-        # -------------------------
         if entry["status"] != 404:
             results.append(entry)
 
     return {
         "module": "endpoint_discovery",
         "target": target,
+        "total_checked": len(paths),
         "results": results
     }
-
