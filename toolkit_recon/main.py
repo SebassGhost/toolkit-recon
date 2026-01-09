@@ -128,18 +128,18 @@ def run_recon_all():
     sub_data = sub_run(target)
     show_subdomains(sub_data)
     save_output(target, "subdomains", sub_data)
+    save_recon(target, "subdomain_enum", sub_data)   
 
     print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
     endpoint_data = endpoint_run(target)
     save_output(target, "endpoints", endpoint_data)
+    save_recon(target, "endpoint_discovery", endpoint_data)  
 
-    save_recon(target, {
-        "subdomain_enum": sub_data,
-        "endpoint_discovery": endpoint_data,
-        "tech_fingerprint": None
-    })
+    save_recon(target, "tech_fingerprint", None)  
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+
+    
 
 
 # =========================
