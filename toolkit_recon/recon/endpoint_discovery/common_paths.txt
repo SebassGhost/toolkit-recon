@@ -5,6 +5,7 @@ dashboard
 panel
 config
 uploads
+backup
 robots.txt
-.svn
 .git
+.svn
