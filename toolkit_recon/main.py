@@ -102,6 +102,8 @@ def run_recon_all():
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
 
+def run_endpoint_discovery():
+    print(C.YELLOW + "\n[!] Endpoint Discovery not implemented yet" + C.RESET)
 
 
 # =========================
