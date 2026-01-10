@@ -1,5 +1,5 @@
 # Toolkit-Recon
-##Toolkit-Recon — Framework modular de reconnaissance y OSINT para pentesting educativo
+## Toolkit-Recon — Framework modular de reconnaissance y OSINT para pentesting educativo
 
 Toolkit-Recon está diseñado para automatizar la fase de reconocimiento de pruebas de penetración en entornos autorizados. Su filosofía es modularidad, ética y análisis reproducible, permitiendo correlación de datos entre módulos y almacenamiento histórico para análisis en profundidad. (aun se encuentra en etapa de desarrollo)
 
