@@ -39,16 +39,14 @@ cd toolkit-recon
 
 pip install -r requirements.txt
 
-## Uso
-PowerShell:
-.\launcher\run.ps1 example.com
+## 🚀 Us
 
-CMD:
-launcher\run.bat example.com
+Toolkit-Recon se ejecuta como un **módulo Python**, siguiendo una estructura de paquete profesional.
 
-Bash:
-chmod +x launcher/run.sh
-./launcher/run.sh example.com
+Desde la raíz del proyecto, ejecuta:
+
+```bash
+"python -m toolkit_recon.main"
 
 ## Output
 
