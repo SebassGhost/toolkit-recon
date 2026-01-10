@@ -1,36 +1,34 @@
 # Toolkit-Recon
 ## Toolkit-Recon — Framework modular de reconnaissance y OSINT para pentesting educativo
 
-Toolkit-Recon está diseñado para automatizar la fase de reconocimiento de pruebas de penetración en entornos autorizados. Su filosofía es modularidad, ética y análisis reproducible, permitiendo correlación de datos entre módulos y almacenamiento histórico para análisis en profundidad. (aun se encuentra en etapa de desarrollo)
+**Framework modular de reconocimiento (Reconnaissance) orientado a pentesting**, escrito en Python, con lanzadores multiplataforma (PowerShell, CMD y Bash).
+Este proyecto está diseñado como toolkit personal y educativo, siguiendo prácticas reales usadas en frameworks profesionales de seguridad ofensiva.
 
 ## Aviso legal
 
-Este toolkit fue creado únicamente con fines educativos y de aprendizaje.
-
-Úsalo solo en activos propios o con autorización explícita.
-
+Este toolkit fue creado únicamente con fines educativos y de aprendizaje.  
+Úsalo solo en activos propios o con autorización explícita.  
 El autor no se hace responsable del uso indebido.
+
 
 ## Filosofía del proyecto
 
-Toolkit-Recon está diseñado para automatizar la **fase de reconocimiento en pruebas de penetración**, respetando siempre la ética y el uso autorizado. Su filosofía se basa en tres pilares:
+Toolkit-Recon está diseñado con **modularidad, escalabilidad y profesionalismo** en mente:
 
-1. **Modularidad** – Cada componente del toolkit funciona de forma independiente y escalable, permitiendo agregar nuevos módulos sin afectar los existentes
-2. **Reproducibilidad** – Todos los resultados se almacenan de forma estructurada (JSON / SQLite) para análisis histórico y correlación de datos entre módulos
-3. **Ética y seguridad** – El toolkit solo procesa información pública o de entornos autorizados; no incluye exploits ni técnicas invasivas
+- **Arquitectura modular:** Cada módulo funciona de forma independiente, permitiendo agregar nuevas funcionalidades sin afectar el núcleo
+- **Orquestador central (`recon_all.py`):** Coordina la ejecución de todos los módulos y almacena los resultados
+- **Persistencia de resultados:** JSON estructurado en `output//recon.json` para análisis histórico y correlación de datos 
+- **Multiplataforma:** Compatible con PowerShell, CMD y Bash.  
+- **En proceso:** Módulos OSINT planeados para análisis de infraestructura pública (ASN, CIDR, proveedores cloud) y subdominios pasivos mediante fuentes OSINT
 
-Este proyecto permite a investigadores y pentesters educativos realizar un **reconocimiento organizado y profesional**, facilitando la comprensión de la superficie de ataque de objetivos propios o autorizados
 
+## Características principales
 
-## Funcionalidades principales
-
-- **Enumeración de dominios y subdominios**  
-- **Resolución de IPs y detección de ASN / proveedores cloud**  
-- **Descubrimiento de endpoints HTTP comunes**  
-- **Fingerprinting de tecnologías (headers y servicios visibles)**  
-- **Almacenamiento de resultados en JSON y SQLite**  
-- **Arquitectura modular**, fácil de ampliar con nuevos módulos OSINT o integraciones externas  
-
+- Arquitectura modular y escalable  
+- Orquestador central (`recon_all.py`)  
+- Ejecución multiplataforma  
+- Resultados persistentes en JSON  
+- Base para crecimiento hacia un toolkit de nivel profesional  
 
 
 ## Instalación
@@ -57,30 +55,27 @@ chmod +x launcher/run.sh
 Los resultados se almacenan automáticamente en:
 output/<target>/recon.json
 
-## Módulos implementados
- ### Domain Enumeration
+Módulos implementados
 
-·Resolución DNS
+### Domain Enumeration
+- Resolución DNS  
+- Obtención de IPs
 
-·Obtención de IPs
+### Subdomain Enumeration
+- Fuerza bruta con wordlist  
+- Resolución DNS
 
-###  Subdomain Enumeration
+### Endpoint Discovery
+- Descubrimiento de rutas comunes  
+- Validación HTTP
 
-·Fuerza bruta con wordlist
+### Tech Fingerprint (en progreso)
+- Identificación de tecnologías  
+- Headers HTTP
 
-·Resolución DNS
-
- ### Endpoint Discovery
-
-·Descubrimiento de rutas comunes
-
-·Validación HTTP
-
- ### Tech Fingerprint (en progreso)
-
-·Identificación de tecnologías
-
-·Headers HTTP
+### OSINT (en proceso)
+- Infraestructura pública (ASN, rangos IP, proveedores cloud)  
+- Subdominios pasivos mediante fuentes públicas
 
 Contribución y ética
 
