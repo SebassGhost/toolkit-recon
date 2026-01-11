@@ -84,6 +84,31 @@ def run_subdomain_enum():
     show_subdomains(data)
     save_output(target, "subdomains", data)
 
+def run_tech_fingerprint():
+    from toolkit_recon.recon.tech_fingerprint.fingerprint import run as fp_run
+    from toolkit_recon.utils.output import save_output, save_recon
+
+    target = ask_target()
+    if not target:
+        return
+
+    print(C.BLUE + "\n--- Tech Fingerprinting ---" + C.RESET)
+
+    data = fp_run(target)
+
+    if not data or not isinstance(data, dict):
+        print(C.YELLOW + "[!] No technologies detected" + C.RESET)
+        return
+
+    print(C.GREEN + "\n[✔] Technologies detected:\n" + C.RESET)
+
+    for tech, info in data.items():
+        print(f" - {tech}: {info}")
+
+    save_output(target, "tech_fingerprint", data)
+    save_recon(target, "tech_fingerprint", data)
+
+
 
 def run_endpoint_discovery():
     from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
