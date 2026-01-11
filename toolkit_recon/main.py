@@ -64,8 +64,8 @@ def show_subdomains(data):
     for r in results:
         print(
             f" - {r.get('subdomain'):30} "
-            f"{r.get('ip'):15} "
-            f"({r.get('source')})"
+            f"{r.get('ip', 'N/A'):15} "
+            f"({r.get('source', 'unknown')})"
         )
 
 
@@ -125,9 +125,10 @@ def run_recon_all():
         return
 
     # =========================
-    # SUBDOMAIN ENUM
+    # SUBDOMAIN ENUMERATION
     # =========================
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
+
     sub_data = sub_run(target)
     results = sub_data.get("results", [])
 
@@ -147,7 +148,7 @@ def run_recon_all():
         if not subdomain:
             continue
 
-        print(C.BLUE + f"\n[*] Scanning endpoints on {subdomain}" + C.RESET)
+        print(C.BLUE + f"\n[*] Scanning {subdomain}" + C.RESET)
 
         endpoints = endpoint_run(subdomain)
 
