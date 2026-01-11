@@ -1,6 +1,7 @@
 import random
 import string
 import socket
+import time
 
 
 def random_subdomain(domain, length=12):
@@ -10,19 +11,23 @@ def random_subdomain(domain, length=12):
 
 def resolve(domain):
     try:
-        return list(set(socket.gethostbyname_ex(domain)[2]))
+        _, _, ips = socket.gethostbyname_ex(domain)
+        return list(set(ips))
     except socket.gaierror:
+        return []
+    except Exception:
         return []
 
 
-def detect_wildcard(domain, tests=3):
+def detect_wildcard(domain, tests=3, delay=0.3):
     """
-    Detects DNS wildcard behavior.
-    Returns:
-        {
-            "wildcard": bool,
-            "ips": list
-        }
+    Detect DNS wildcard behavior.
+
+    Always returns a dict:
+    {
+        "wildcard": bool,
+        "ips": list
+    }
     """
 
     results = []
@@ -30,19 +35,25 @@ def detect_wildcard(domain, tests=3):
     for _ in range(tests):
         fake = random_subdomain(domain)
         ips = resolve(fake)
+
         if ips:
             results.append(tuple(sorted(ips)))
 
+        # Small delay to avoid DNS caching / rate-limit issues
+        time.sleep(delay)
+
+    # No fake subdomain resolved → no wildcard
     if not results:
         return {
             "wildcard": False,
             "ips": []
         }
 
-    # All fake subdomains resolve to same IPs
-    wildcard = all(r == results[0] for r in results)
+    # If all fake subdomains resolve to the same IPs → wildcard
+    first = results[0]
+    wildcard = all(r == first for r in results)
 
     return {
         "wildcard": wildcard,
-        "ips": list(results[0]) if wildcard else []
+        "ips": list(first) if wildcard else []
     }
