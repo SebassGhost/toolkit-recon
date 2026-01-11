@@ -21,35 +21,46 @@ def run(target, use_passive=True):
     results = []
     seen = set()
 
+    # -------------------------
+    # Wildcard detection
+    # -------------------------
     wildcard_info = detect_wildcard(target)
+    wildcard_ips = wildcard_info.get("ips", [])
 
-    if wildcard_info["wildcard"]:
-        ips = ", ".join(wildcard_info["ips"])
-        print(f"[!] Wildcard DNS detected ({ips})")
+    if wildcard_info.get("wildcard"):
+        print(f"[!] Wildcard DNS detected ({', '.join(wildcard_ips)})")
     else:
         print("[+] No wildcard DNS detected")
 
-
-    # — Active / Bruteforce
+    # -------------------------
+    # Active / Bruteforce
+    # -------------------------
     wordlist = load_wordlist()
+
     for word in wordlist:
         subdomain = f"{word}.{target}"
-        ip = resolve(subdomain)
+        ips = resolve(subdomain)
 
-        if not ip:
+        if not ips:
             continue
 
-        if wildcard_ip and ip == wildcard_ip:
+        # Skip pure wildcard matches
+        if wildcard_ips and all(ip in wildcard_ips for ip in ips):
+            continue
+
+        if subdomain in seen:
             continue
 
         seen.add(subdomain)
         results.append({
             "subdomain": subdomain,
-            "ip": ip,
+            "ip": ips[0],
             "source": "brute"
         })
 
-    # — Passive sources (crt.sh, ThreatCrowd, etc)
+    # -------------------------
+    # Passive enumeration
+    # -------------------------
     if use_passive:
         passive_subs = passive_enum(target)
 
@@ -57,16 +68,17 @@ def run(target, use_passive=True):
             if subdomain in seen:
                 continue
 
-            ip = resolve(subdomain)
-            if not ip:
+            ips = resolve(subdomain)
+            if not ips:
                 continue
 
-            if wildcard_ip and ip == wildcard_ip:
+            if wildcard_ips and all(ip in wildcard_ips for ip in ips):
                 continue
 
+            seen.add(subdomain)
             results.append({
                 "subdomain": subdomain,
-                "ip": ip,
+                "ip": ips[0],
                 "source": "passive"
             })
 
@@ -74,6 +86,7 @@ def run(target, use_passive=True):
         "module": "subdomain_enum",
         "target": target,
         "count": len(results),
-        "wildcard": bool(wildcard_ip),
+        "wildcard": wildcard_info.get("wildcard", False),
+        "wildcard_ips": wildcard_ips,
         "results": results
     }
