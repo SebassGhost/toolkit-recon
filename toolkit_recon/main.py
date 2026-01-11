@@ -158,7 +158,15 @@ def run_recon_all():
             print(C.YELLOW + "    [!] No endpoints found" + C.RESET)
             continue
 
-        interesting = [e for e in endpoints if e.get("interesting")]
+        endpoints = endpoint_run(subdomain)
+
+        if not endpoints or not isinstance(endpoints, list):
+             continue
+
+clean = [e for e in endpoints if isinstance(e, dict)]
+
+interesting = [e for e in clean if e.get("interesting")]
+
 
         print(
             C.GREEN
