@@ -1,91 +1,86 @@
 import requests
-import json
-import os
 
-HTML_SIGNATURES = {
-    "WordPress": ["wp-content", "wp-includes", "wordpress"],
-    "Next.js": ["_next/static", "__NEXT_DATA__"],
-    "Nuxt": ["__nuxt"],
-    "React": ["react", "react-dom"],
-    "Vue.js": ["vue", "data-v-"],
-    "Laravel": ["laravel", "csrf-token"]
-}
+TIMEOUT = 6
 
 
-def load_signatures():
-    path = os.path.join(os.path.dirname(__file__), "signatures.json")
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+def run(target: str):
+    if target.startswith("http"):
+        base_url = target.rstrip("/")
+    else:
+        base_url = f"https://{target}".rstrip("/")
 
-
-def normalize_headers(headers):
-    return {k.lower(): v for k, v in headers.items()}
-
-
-def html_fingerprint(html: str):
-    detected = []
-    html_lower = html.lower()
-
-    for tech, patterns in HTML_SIGNATURES.items():
-        for pattern in patterns:
-            if pattern.lower() in html_lower:
-                detected.append(tech)
-                break
-
-    return list(set(detected))
-
-
-def run(target):
-    url = f"https://{target}"
-    signatures = load_signatures()
-
-    result = {
-        "module": "tech_fingerprint",
-        "target": target,
-        "results": {
-            "server": None,
-            "cdn": None,
-            "frameworks": [],
-            "technologies": [],
-            "headers": {}
-        }
+    data = {
+        "server": None,
+        "cdn": None,
+        "framework": None,
+        "language": None,
+        "cookies": [],
+        "headers": {},
+        "graphql": False
     }
 
     try:
-        response = requests.get(url, timeout=8)
-    except Exception as e:
-        result["error"] = str(e)
-        return result
+        r = requests.get(base_url, timeout=TIMEOUT, allow_redirects=True)
+    except Exception:
+        return data
 
-    headers = normalize_headers(response.headers)
-    result["results"]["headers"] = dict(headers)
+    headers = {k.lower(): v for k, v in r.headers.items()}
+    data["headers"] = headers
 
-    # Server
-    server = headers.get("server")
-    if server:
-        result["results"]["server"] = server
+    # -------------------------
+    # Server / CDN detection
+    # -------------------------
+    server = headers.get("server", "")
+    via = headers.get("via", "")
+    cf_ray = headers.get("cf-ray")
 
-    # Header-based fingerprinting
-    for tech, rules in signatures.items():
-        for rule in rules:
-            header = rule.get("header")
-            value = rule.get("value")
+    if cf_ray:
+        data["cdn"] = "cloudflare"
+    elif "akamai" in via.lower():
+        data["cdn"] = "akamai"
+    elif "fastly" in via.lower():
+        data["cdn"] = "fastly"
 
-            if header in headers and value.lower() in headers[header].lower():
-                if rule.get("type") == "cdn":
-                    result["results"]["cdn"] = tech
-                elif rule.get("type") == "framework":
-                    result["results"]["frameworks"].append(tech)
-                else:
-                    result["results"]["technologies"].append(tech)
+    data["server"] = server or None
 
-    # HTML fingerprinting
-    html_techs = html_fingerprint(response.text)
-    result["results"]["frameworks"].extend(html_techs)
+    # -------------------------
+    # Cookies fingerprint
+    # -------------------------
+    cookies = r.cookies.get_dict()
+    data["cookies"] = list(cookies.keys())
 
-    # Deduplicate
-    result["results"]["frameworks"] = list(set(result["results"]["frameworks"]))
-    result["results"]["technologies"] = list(set(result["results"]["technologies"]))
+    if "sessionid" in cookies:
+        data["framework"] = "django"
+        data["language"] = "python"
+    elif "phpsessid" in cookies:
+        data["language"] = "php"
+    elif "connect.sid" in cookies:
+        data["framework"] = "express"
+        data["language"] = "nodejs"
 
-    return result
+    # -------------------------
+    # Headers fingerprint
+    # -------------------------
+    if "x-powered-by" in headers:
+        powered = headers["x-powered-by"].lower()
+        if "express" in powered:
+            data["framework"] = "express"
+            data["language"] = "nodejs"
+        elif "php" in powered:
+            data["language"] = "php"
 
+    # -------------------------
+    # GraphQL quick probe
+    # -------------------------
+    try:
+        g = requests.post(
+            f"{base_url}/graphql",
+            json={"query": "{__typename}"},
+            timeout=TIMEOUT
+        )
+        if g.status_code in [200, 400]:
+            data["graphql"] = True
+    except Exception:
+        pass
+
+    return data
