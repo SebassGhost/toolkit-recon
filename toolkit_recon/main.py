@@ -131,10 +131,9 @@ def run_recon_all():
     # =========================
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
     sub_data = sub_run(target)
-
     results = sub_data.get("results", [])
-    show_subdomains(sub_data)
 
+    show_subdomains(sub_data)
     save_output(target, "subdomains", sub_data)
     save_recon(target, "subdomain_enum", sub_data)
 
@@ -154,19 +153,12 @@ def run_recon_all():
 
         endpoints = endpoint_run(subdomain)
 
-        if not endpoints:
+        if not endpoints or not isinstance(endpoints, list):
             print(C.YELLOW + "    [!] No endpoints found" + C.RESET)
             continue
 
-        endpoints = endpoint_run(subdomain)
-
-        if not endpoints or not isinstance(endpoints, list):
-             continue
-
-clean = [e for e in endpoints if isinstance(e, dict)]
-
-interesting = [e for e in clean if e.get("interesting")]
-
+        clean = [e for e in endpoints if isinstance(e, dict)]
+        interesting = [e for e in clean if e.get("interesting")]
 
         print(
             C.GREEN
@@ -174,7 +166,7 @@ interesting = [e for e in clean if e.get("interesting")]
             + C.RESET
         )
 
-        all_endpoints[subdomain] = endpoints
+        all_endpoints[subdomain] = clean
 
     save_output(target, "endpoints", all_endpoints)
     save_recon(target, "endpoint_discovery", all_endpoints)
@@ -186,7 +178,7 @@ interesting = [e for e in clean if e.get("interesting")]
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
 
-    
+   
 
 
 # =========================
