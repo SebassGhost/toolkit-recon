@@ -119,6 +119,7 @@ def run_recon_all():
     from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
     from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_run
     from toolkit_recon.utils.output import save_output, save_recon
+    from toolkit_recon.recon.tech_fingerprint.fingerprint import run as fp_run
 
     target = ask_target()
     if not target:
@@ -173,9 +174,27 @@ def run_recon_all():
     # =========================
     # TECH FINGERPRINT (placeholder)
     # =========================
-    save_recon(target, "tech_fingerprint", [])
+       # =========================
+    # TECH FINGERPRINTING
+    # =========================
+    print(C.BLUE + "\n--- Tech Fingerprinting ---" + C.RESET)
 
-    print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+    fingerprints = {}
+
+    for entry in results:
+        subdomain = entry.get("subdomain")
+        if not subdomain:
+            continue
+
+        print(C.BLUE + f"[*] Fingerprinting {subdomain}" + C.RESET)
+
+        fp = fp_run(subdomain)
+
+        if fp:
+            fingerprints[subdomain] = fp
+
+    save_recon(target, "tech_fingerprint", fingerprints)
+
 
 
 # =========================
