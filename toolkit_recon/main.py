@@ -128,11 +128,11 @@ def run_recon_all():
     # SUBDOMAIN ENUM
     # =========================
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
-
     sub_data = sub_run(target)
-    subdomains = sub_data.get("results", [])
 
+    results = sub_data.get("results", [])
     show_subdomains(sub_data)
+
     save_output(target, "subdomains", sub_data)
     save_recon(target, "subdomain_enum", sub_data)
 
@@ -143,7 +143,7 @@ def run_recon_all():
 
     all_endpoints = {}
 
-    for entry in subdomains:
+    for entry in results:
         subdomain = entry.get("subdomain")
         if not subdomain:
             continue
@@ -175,6 +175,9 @@ def run_recon_all():
     save_recon(target, "tech_fingerprint", [])
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+
+  
+  
 
 
 # =========================
