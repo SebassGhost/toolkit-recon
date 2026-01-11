@@ -97,11 +97,11 @@ def run_endpoint_discovery():
 
     endpoints = endpoint_run(target)
 
-    if not endpoints:
+    if not endpoints or not isinstance(endpoints, list):
         print(C.YELLOW + "[!] No endpoints found" + C.RESET)
         return
 
-    interesting = [e for e in endpoints if e.get("interesting")]
+    interesting = [e for e in endpoints if isinstance(e, dict) and e.get("interesting")]
 
     print(C.GREEN + f"\n[✔] {len(interesting)} interesting endpoints found\n" + C.RESET)
 
@@ -175,8 +175,6 @@ def run_recon_all():
     save_recon(target, "tech_fingerprint", [])
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
-
-  
 
 
 # =========================
