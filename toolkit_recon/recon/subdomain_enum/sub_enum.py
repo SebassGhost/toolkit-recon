@@ -21,12 +21,14 @@ def run(target, use_passive=True):
     results = []
     seen = set()
 
-    wildcard_ip = detect_wildcard(target)
+    wildcard_info = detect_wildcard(target)
 
-    if wildcard_ip:
-        print(f"[!] Wildcard DNS detected ({wildcard_ip})")
+    if wildcard_info["wildcard"]:
+        ips = ", ".join(wildcard_info["ips"])
+        print(f"[!] Wildcard DNS detected ({ips})")
     else:
         print("[+] No wildcard DNS detected")
+
 
     # — Active / Bruteforce
     wordlist = load_wordlist()
