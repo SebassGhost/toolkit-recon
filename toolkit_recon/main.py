@@ -259,21 +259,27 @@ def main():
         if choice == "1":
             run_subdomain_enum()
             pause()
+
         elif choice == "2":
             run_endpoint_discovery()
             pause()
+
         elif choice == "3":
-            print(C.YELLOW + "\n[!] Tech Fingerprinting not implemented yet" + C.RESET)
+            run_tech_fingerprint()
             pause()
+
         elif choice == "4":
             run_recon_all()
             pause()
+
         elif choice == "0":
             sys.exit(0)
+
         else:
             print(C.RED + "\nInvalid option" + C.RESET)
             time.sleep(1)
 
+    
 
 if __name__ == "__main__":
     main()
