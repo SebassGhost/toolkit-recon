@@ -86,33 +86,57 @@ def run_subdomain_enum():
 
 
 def run_endpoint_discovery():
+    from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
     from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_run
-    from toolkit_recon.utils.output import save_output
+    from toolkit_recon.utils.output import save_output, save_recon
 
     target = ask_target()
     if not target:
         return
 
-    print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
+    print(C.BLUE + "\n--- Endpoint Discovery (per subdomain) ---" + C.RESET)
 
-    endpoints = endpoint_run(target)
+    sub_data = sub_run(target)
+    results = sub_data.get("results", [])
 
-    if not endpoints or not isinstance(endpoints, list):
-        print(C.YELLOW + "[!] No endpoints found" + C.RESET)
-        return
+    all_endpoints = {}
+    total_interesting = 0
 
-    interesting = [e for e in endpoints if isinstance(e, dict) and e.get("interesting")]
+    for entry in results:
+        subdomain = entry.get("subdomain")
+        if not subdomain:
+            continue
 
-    print(C.GREEN + f"\n[✔] {len(interesting)} interesting endpoints found\n" + C.RESET)
+        print(C.BLUE + f"\n[*] Scanning {subdomain}" + C.RESET)
 
-    for e in interesting:
+        endpoints = endpoint_run(subdomain)
+
+        if not endpoints or not isinstance(endpoints, list):
+            print(C.YELLOW + "    [!] No endpoints found" + C.RESET)
+            continue
+
+        clean = [e for e in endpoints if isinstance(e, dict)]
+        interesting = [e for e in clean if e.get("interesting")]
+
+        total_interesting += len(interesting)
+
         print(
-            f" - {e.get('path'):25} "
-            f"[{e.get('status')}] "
-            f"{','.join(e.get('methods', []))}"
+            C.GREEN
+            + f"    [✓] {len(interesting)} interesting endpoints"
+            + C.RESET
         )
 
-    save_output(target, "endpoints", endpoints)
+        all_endpoints[subdomain] = clean
+
+    save_output(target, "endpoints", all_endpoints)
+    save_recon(target, "endpoint_discovery", all_endpoints)
+
+    print(
+        C.GREEN
+        + f"\n[✔] Endpoint discovery completed ({total_interesting} interesting endpoints)"
+        + C.RESET
+    )
+
 
 
 def run_recon_all():
