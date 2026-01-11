@@ -95,27 +95,25 @@ def run_endpoint_discovery():
 
     print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
 
-    data = endpoint_run(target)
-    results = data.get("results", [])
+    endpoints = endpoint_run(target)
 
-    if not results:
+    if not endpoints:
         print(C.YELLOW + "[!] No endpoints found" + C.RESET)
         return
 
-    interesting = [r for r in results if r.get("interesting")]
+    interesting = [e for e in endpoints if e.get("interesting")]
 
     print(C.GREEN + f"\n[✔] {len(interesting)} interesting endpoints found\n" + C.RESET)
 
-    for r in interesting:
+    for e in interesting:
         print(
-            f" - {r.get('path'):25} "
-            f"[{r.get('status')}] "
-            f"{','.join(r.get('methods', []))}"
+            f" - {e.get('path'):25} "
+            f"[{e.get('status')}] "
+            f"{','.join(e.get('methods', []))}"
         )
 
-    save_output(target, "endpoints", data)
+    save_output(target, "endpoints", endpoints)
 
-   
 
 def run_recon_all():
     from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
@@ -130,8 +128,9 @@ def run_recon_all():
     # SUBDOMAIN ENUM
     # =========================
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
+
     sub_data = sub_run(target)
-    results = sub_data.get("results", [])
+    subdomains = sub_data.get("results", [])
 
     show_subdomains(sub_data)
     save_output(target, "subdomains", sub_data)
@@ -144,7 +143,7 @@ def run_recon_all():
 
     all_endpoints = {}
 
-    for entry in results:
+    for entry in subdomains:
         subdomain = entry.get("subdomain")
         if not subdomain:
             continue
@@ -153,12 +152,11 @@ def run_recon_all():
 
         endpoints = endpoint_run(subdomain)
 
-        if not endpoints or not isinstance(endpoints, list):
+        if not endpoints:
             print(C.YELLOW + "    [!] No endpoints found" + C.RESET)
             continue
 
-        clean = [e for e in endpoints if isinstance(e, dict)]
-        interesting = [e for e in clean if e.get("interesting")]
+        interesting = [e for e in endpoints if e.get("interesting")]
 
         print(
             C.GREEN
@@ -166,7 +164,7 @@ def run_recon_all():
             + C.RESET
         )
 
-        all_endpoints[subdomain] = clean
+        all_endpoints[subdomain] = endpoints
 
     save_output(target, "endpoints", all_endpoints)
     save_recon(target, "endpoint_discovery", all_endpoints)
@@ -177,8 +175,6 @@ def run_recon_all():
     save_recon(target, "tech_fingerprint", [])
 
     print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
-
-   
 
 
 # =========================
