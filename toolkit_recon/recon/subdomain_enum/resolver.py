@@ -1,57 +1,62 @@
 import socket
 import random
 import string
+from functools import lru_cache
+from toolkit_recon.config.profiles import PROFILES
 
 
-def resolve(domain):
-    """
-    Resolve a domain to an IP.
-    Returns IP string or None.
-    """
+# -------------------------
+# DNS Resolve (cached)
+# -------------------------
+@lru_cache(maxsize=4096)
+def _resolve_cached(domain: str):
     try:
-        return socket.gethostbyname(domain)
-    except socket.gaierror:
-        return None
+        return socket.gethostbyname_ex(domain)[2]
+    except Exception:
+        return []
 
 
-def random_subdomain(domain, length=12):
-    rand = "".join(random.choice(string.ascii_lowercase) for _ in range(length))
-    return f"{rand}.{domain}"
-
-
-def detect_wildcard(domain, tests=2):
+def resolve(domain: str, profile: str = "balanced"):
     """
-    Detect wildcard DNS.
-    Returns a dict ALWAYS:
-    {
-        "wildcard": bool,
-        "ip": str | None
-    }
+    Resolve domain to IPs.
+    Uses cache to avoid repeated queries.
     """
+    cfg = PROFILES.get(profile, PROFILES["balanced"])
+    timeout = cfg["http"].get("timeout", 6)
 
-    ips = []
+    # socket timeout (stealth / network)
+    socket.setdefaulttimeout(timeout)
 
-    for _ in range(tests):
-        fake = random_subdomain(domain)
-        ip = resolve(fake)
-        if ip:
-            ips.append(ip)
+    ips = _resolve_cached(domain)
+    return ips if ips else None
 
-    # No random subdomain resolved → no wildcard
-    if not ips:
-        return {
-            "wildcard": False,
-            "ip": None
-        }
 
-    # If all resolved to same IP → wildcard
-    if all(ip == ips[0] for ip in ips):
-        return {
-            "wildcard": True,
-            "ip": ips[0]
-        }
+# -------------------------
+# Wildcard detection
+# -------------------------
+def detect_wildcard(target: str, profile: str = "balanced") -> dict:
+    """
+    Detects wildcard DNS by resolving random subdomains.
+    """
+    cfg = PROFILES.get(profile, PROFILES["balanced"])
+    timeout = cfg["http"].get("timeout", 6)
+
+    socket.setdefaulttimeout(timeout)
+
+    random_labels = [
+        "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
+        for _ in range(2)
+    ]
+
+    resolved_ips = set()
+
+    for label in random_labels:
+        test_domain = f"{label}.{target}"
+        ips = resolve(test_domain, profile=profile)
+        if ips:
+            resolved_ips.update(ips)
 
     return {
-        "wildcard": False,
-        "ip": None
+        "wildcard": bool(resolved_ips),
+        "ips": list(resolved_ips)
     }
