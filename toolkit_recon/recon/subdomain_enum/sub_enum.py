@@ -1,6 +1,8 @@
 import os
+from toolkit_recon.config.profiles import PROFILES
 from .resolver import resolve, detect_wildcard
 from .sources.passive import run as passive_enum
+
 
 WORDLIST_FILE = os.path.join(
     os.path.dirname(__file__),
@@ -9,6 +11,9 @@ WORDLIST_FILE = os.path.join(
 )
 
 
+# =========================
+# Load wordlist
+# =========================
 def load_wordlist():
     if not os.path.exists(WORDLIST_FILE):
         return []
@@ -17,7 +22,19 @@ def load_wordlist():
         return [line.strip() for line in f if line.strip()]
 
 
-def run(target, use_passive=True):
+# =========================
+# MAIN RUNNER
+# =========================
+def run(target: str, profile: str = "balanced") -> dict:
+    cfg = PROFILES.get(profile)
+    if not cfg:
+        raise ValueError(f"Invalid profile: {profile}")
+
+    sub_cfg = cfg["subdomain"]
+
+    use_passive = sub_cfg["passive"]
+    max_bruteforce = sub_cfg["max_bruteforce"]
+
     results = []
     seen = set()
 
@@ -35,7 +52,7 @@ def run(target, use_passive=True):
     # -------------------------
     # Active / Bruteforce
     # -------------------------
-    wordlist = load_wordlist()
+    wordlist = load_wordlist()[:max_bruteforce]
 
     for word in wordlist:
         subdomain = f"{word}.{target}"
@@ -85,6 +102,7 @@ def run(target, use_passive=True):
     return {
         "module": "subdomain_enum",
         "target": target,
+        "profile": profile,
         "count": len(results),
         "wildcard": wildcard_info.get("wildcard", False),
         "wildcard_ips": wildcard_ips,
