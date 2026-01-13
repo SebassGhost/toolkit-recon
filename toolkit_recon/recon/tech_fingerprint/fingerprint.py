@@ -1,92 +1,121 @@
-import time
-import random
 import requests
 
-USER_AGENTS = [
-    "Mozilla/5.0",
-    "Mozilla/5.0 (X11; Linux x86_64)",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-]
+from toolkit_recon.config.profiles import PROFILES
 
 
-def run(target: str, profile: dict) -> dict:
-    network = profile.get("network", {})
-    stealth = profile.get("stealth", {})
-    tech_cfg = profile.get("tech", {})
-
-    timeout = network.get("timeout", 6)
-    follow_redirects = network.get("follow_redirects", False)
-
-    delay = stealth.get("delay", 0)
-    random_ua = stealth.get("random_user_agent", False)
-
-    headers = {}
-    if random_ua:
-        headers["User-Agent"] = random.choice(USER_AGENTS)
-
-    if delay > 0:
-        time.sleep(delay)
-
+# -------------------------
+# Utils
+# -------------------------
+def normalize_url(target: str) -> str:
     if target.startswith("http"):
-        base_url = target.rstrip("/")
-    else:
-        base_url = f"https://{target}".rstrip("/")
+        return target.rstrip("/")
+    return f"https://{target}".rstrip("/")
+
+
+# -------------------------
+# Main runner
+# -------------------------
+def run(target: str, profile: str = "balanced") -> dict:
+    """
+    Technology fingerprinting module.
+    Lightweight, profile-aware and stealth-conscious.
+    """
+
+    cfg = PROFILES.get(profile, PROFILES["balanced"])
+    http_cfg = cfg["http"]
+
+    base_url = normalize_url(target)
 
     data = {
         "module": "tech_fingerprint",
         "target": target,
-        "server": None,
-        "cdn": None,
-        "framework": None,
-        "language": None,
-        "cookies": [],
+        "technologies": {
+            "server": None,
+            "cdn": None,
+            "framework": None,
+            "language": None,
+            "cookies": [],
+            "graphql": False,
+        },
         "headers": {},
-        "graphql": False
     }
 
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "toolkit-recon/1.0"
+    })
+
+    # -------------------------
+    # Base request
+    # -------------------------
     try:
-        r = requests.get(
+        r = session.get(
             base_url,
-            timeout=timeout,
-            allow_redirects=follow_redirects,
-            headers=headers
+            timeout=http_cfg["timeout"],
+            allow_redirects=http_cfg["follow_redirects"]
         )
-    except Exception as e:
-        data["error"] = str(e)
+    except Exception:
         return data
 
-    response_headers = {k.lower(): v for k, v in r.headers.items()}
-    data["headers"] = response_headers
+    headers = {k.lower(): v for k, v in r.headers.items()}
+    data["headers"] = headers
 
-    # --- CDN / Server ---
-    if "cf-ray" in response_headers:
-        data["cdn"] = "cloudflare"
-    elif "akamai" in response_headers.get("via", "").lower():
-        data["cdn"] = "akamai"
+    # -------------------------
+    # Server / CDN detection
+    # -------------------------
+    server = headers.get("server")
+    via = headers.get("via", "").lower()
+    cf_ray = headers.get("cf-ray")
 
-    data["server"] = response_headers.get("server")
+    if cf_ray:
+        data["technologies"]["cdn"] = "cloudflare"
+    elif "akamai" in via:
+        data["technologies"]["cdn"] = "akamai"
+    elif "fastly" in via:
+        data["technologies"]["cdn"] = "fastly"
 
-    # --- Cookies ---
+    data["technologies"]["server"] = server
+
+    # -------------------------
+    # Cookies fingerprint
+    # -------------------------
     cookies = r.cookies.get_dict()
-    data["cookies"] = list(cookies.keys())
+    data["technologies"]["cookies"] = list(cookies.keys())
 
     if "sessionid" in cookies:
-        data["framework"] = "django"
-        data["language"] = "python"
+        data["technologies"]["framework"] = "django"
+        data["technologies"]["language"] = "python"
     elif "phpsessid" in cookies:
-        data["language"] = "php"
+        data["technologies"]["language"] = "php"
+    elif "connect.sid" in cookies:
+        data["technologies"]["framework"] = "express"
+        data["technologies"]["language"] = "nodejs"
 
-    # --- GraphQL (controlado por perfil) ---
-    if tech_cfg.get("graphql", False):
+    # -------------------------
+    # Headers fingerprint
+    # -------------------------
+    powered = headers.get("x-powered-by", "").lower()
+
+    if powered:
+        if "express" in powered:
+            data["technologies"]["framework"] = "express"
+            data["technologies"]["language"] = "nodejs"
+        elif "php" in powered:
+            data["technologies"]["language"] = "php"
+
+    # -------------------------
+    # GraphQL probe (profile aware)
+    # -------------------------
+    # Only in balanced / aggressive
+    if profile != "passive":
         try:
-            g = requests.post(
+            g = session.post(
                 f"{base_url}/graphql",
                 json={"query": "{__typename}"},
-                timeout=timeout,
-                headers=headers
+                timeout=http_cfg["timeout"]
             )
             if g.status_code in (200, 400):
-                data["graphql"] = True
+                data["technologies"]["graphql"] = True
         except Exception:
             pass
 
