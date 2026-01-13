@@ -1,28 +1,40 @@
 import os
 import requests
 from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from toolkit_recon.config.profiles import PROFILES
 
+
 # -------------------------
-# Configuración general
+# Constants
 # -------------------------
 INTERESTING_KEYWORDS = [
     "admin", "api", "login", "dashboard", "upload", "graphql"
 ]
 
 BASE_DIR = os.path.dirname(__file__)
-WORDLIST_FILE = os.path.join(BASE_DIR, "common_paths.txt")
+
+WORDLISTS = {
+    "small": "small_paths.txt",
+    "medium": "common_paths.txt",
+    "large": "large_paths.txt",
+}
 
 
 # -------------------------
-# Load wordlist
+# Utils
 # -------------------------
-def load_wordlist():
-    if not os.path.exists(WORDLIST_FILE):
+def load_wordlist(name: str):
+    filename = WORDLISTS.get(name)
+    if not filename:
         return []
 
-    with open(WORDLIST_FILE, "r", encoding="utf-8") as f:
+    path = os.path.join(BASE_DIR, filename)
+    if not os.path.exists(path):
+        return []
+
+    with open(path, "r", encoding="utf-8") as f:
         return [
             "/" + line.strip().lstrip("/")
             for line in f
@@ -30,22 +42,16 @@ def load_wordlist():
         ]
 
 
-# -------------------------
-# Filtro de paths inútiles
-# -------------------------
-def should_scan(path):
-    skip_ext = [
+def should_scan(path: str) -> bool:
+    skip_ext = (
         ".css", ".js", ".png", ".jpg", ".jpeg",
         ".svg", ".ico", ".woff", ".ttf", ".map"
-    ]
-    return not any(path.lower().endswith(ext) for ext in skip_ext)
+    )
+    return not path.lower().endswith(skip_ext)
 
 
-# -------------------------
-# Detección de interés
-# -------------------------
-def is_interesting(path, status, length):
-    if status not in [200, 301, 302, 401, 403]:
+def is_interesting(path: str, status: int, length: int) -> bool:
+    if status not in (200, 301, 302, 401, 403):
         return False
     if length == 0:
         return False
@@ -53,144 +59,125 @@ def is_interesting(path, status, length):
     return any(k in path.lower() for k in INTERESTING_KEYWORDS)
 
 
-# =========================
-# Runner principal
-# =========================
-def run(target: str, profile="balanced"):
-    # =========================
-    # LOAD PROFILE 
-    # =========================
-    cfg = PROFILES.get(profile)
-    if not cfg:
-        raise ValueError(f"Invalid profile: {profile}")
+# -------------------------
+# HTTP probe
+# -------------------------
+def probe(url: str, session: requests.Session, cfg: dict):
+    try:
+        r = session.get(
+            url,
+            timeout=cfg["timeout"],
+            allow_redirects=cfg["follow_redirects"]
+        )
+    except Exception:
+        return None
 
-    endpoint_cfg = cfg["endpoint"]
+    entry = {
+        "path": url,
+        "status": r.status_code,
+        "length": len(r.content),
+        "content_type": r.headers.get("Content-Type", ""),
+        "redirect": r.headers.get("Location"),
+        "methods": ["GET"],
+        "interesting": False
+    }
+
+    # HEAD
+    if "HEAD" in cfg["methods"]:
+        try:
+            h = session.head(
+                url,
+                timeout=cfg["timeout"],
+                allow_redirects=False
+            )
+            if h.status_code < 500:
+                entry["methods"].append("HEAD")
+        except Exception:
+            pass
+
+    # OPTIONS
+    if "OPTIONS" in cfg["methods"] and r.status_code in (200, 401, 403):
+        try:
+            o = session.options(url, timeout=cfg["timeout"])
+            allow = o.headers.get("Allow")
+            if allow:
+                entry["methods"] = sorted(set(
+                    entry["methods"] + [
+                        m.strip() for m in allow.split(",")
+                    ]
+                ))
+        except Exception:
+            pass
+
+    entry["interesting"] = is_interesting(
+        url,
+        entry["status"],
+        entry["length"]
+    )
+
+    return entry
+
+
+# -------------------------
+# Runner
+# -------------------------
+def run(target: str, profile: str = "balanced"):
+    """
+    Endpoint discovery module.
+    """
+
+    cfg = PROFILES.get(profile, PROFILES["balanced"])
+
     http_cfg = cfg["http"]
+    endpoint_cfg = cfg["endpoint"]
 
-    max_paths = endpoint_cfg["max_paths"]
-    methods_enabled = endpoint_cfg["methods"]
-
-    timeout = http_cfg["timeout"]
-
-    # =========================
-    # NORMALIZAR TARGET
-    # =========================
+    # Normalize base URL
     if target.startswith("http"):
         base_url = target.rstrip("/")
     else:
         base_url = f"https://{target}".rstrip("/")
 
-    paths = load_wordlist()[:max_paths]
+    wordlist_name = endpoint_cfg.get("wordlist", "medium")
+    max_paths = endpoint_cfg.get("max_paths", 500)
+    methods = endpoint_cfg.get("methods", ["GET"])
+
+    paths = load_wordlist(wordlist_name)
+    paths = [p for p in paths if should_scan(p)]
+    paths = paths[:max_paths]
+
     results = []
 
-    # =========================
-    # BASELINE SOFT-404
-    # =========================
-    baseline_status = None
-    baseline_length = None
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "toolkit-recon/1.0"
+    })
 
-    try:
-        fake = requests.get(
-            f"{base_url}/this_should_not_exist_987654",
-            timeout=timeout,
-            allow_redirects=False
-        )
-        baseline_status = fake.status_code
-        baseline_length = len(fake.content)
-    except Exception:
-        pass
+    with ThreadPoolExecutor(max_workers=http_cfg["threads"]) as executor:
+        futures = []
 
-    empty_hits = 0
-    max_empty = endpoint_cfg.get("max_empty", 25)
-
-    # =========================
-    # ENDPOINT DISCOVERY
-    # =========================
-    for path in paths:
-
-        if not should_scan(path):
-            continue
-
-        url = urljoin(base_url, path)
-
-        try:
-            r = requests.get(
-                url,
-                timeout=timeout,
-                allow_redirects=False
-            )
-        except Exception:
-            continue
-
-        # Soft-404 filter
-        if (
-            baseline_status is not None
-            and r.status_code == baseline_status
-            and len(r.content) == baseline_length
-        ):
-            empty_hits += 1
-        else:
-            empty_hits = 0
-
-        if empty_hits >= max_empty:
-            break
-
-        if r.status_code == 404:
-            continue
-
-        entry = {
-            "path": path,
-            "url": url,
-            "status": r.status_code,
-            "length": len(r.content),
-            "content_type": r.headers.get("Content-Type", ""),
-            "redirect": r.headers.get("Location"),
-            "methods": ["GET"],
-            "interesting": False
-        }
-
-        # HEAD
-        if "HEAD" in methods_enabled:
-            try:
-                h = requests.head(
+        for path in paths:
+            url = urljoin(base_url, path)
+            futures.append(
+                executor.submit(
+                    probe,
                     url,
-                    timeout=timeout,
-                    allow_redirects=False
+                    session,
+                    {
+                        "timeout": http_cfg["timeout"],
+                        "follow_redirects": http_cfg["follow_redirects"],
+                        "methods": methods,
+                    }
                 )
-                if h.status_code < 500:
-                    entry["methods"].append("HEAD")
-            except Exception:
-                pass
+            )
 
-        # OPTIONS
-        if "OPTIONS" in methods_enabled and r.status_code in [200, 401, 403]:
-            try:
-                o = requests.options(url, timeout=timeout)
-                allow = o.headers.get("Allow")
-                if allow:
-                    entry["methods"] = sorted(set(
-                        entry["methods"] + [
-                            m.strip() for m in allow.split(",")
-                        ]
-                    ))
-            except Exception:
-                pass
+        for future in as_completed(futures):
+            entry = future.result()
+            if not entry:
+                continue
 
-        entry["interesting"] = is_interesting(
-            path,
-            entry["status"],
-            entry["length"]
-        )
+            if entry["status"] == 404:
+                continue
 
-        results.append(entry)
+            results.append(entry)
 
-    # =========================
-    # RETURN FRAMEWORK DATA
-    # =========================
-    return {
-        "module": "endpoint_discovery",
-        "target": target,
-        "profile": profile,
-        "count": len(results),
-        "results": results
-    }
+    return results
