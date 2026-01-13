@@ -1,0 +1,7 @@
+{
+    "module": "subdomain_enum",
+    "target": "testphp.vulnweb.com",
+    "count": 0,
+    "wildcard": false,
+    "results": []
+}

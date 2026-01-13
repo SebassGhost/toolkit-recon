@@ -1,1 +1,23 @@
-
+{
+    "module": "subdomain_enum",
+    "target": "example.com",
+    "count": 3,
+    "wildcard": false,
+    "results": [
+        {
+            "subdomain": "www.example.com",
+            "ip": "104.18.26.120",
+            "source": "brute"
+        },
+        {
+            "subdomain": "example.com",
+            "ip": "104.18.27.120",
+            "source": "passive"
+        },
+        {
+            "subdomain": "m.testexample.com",
+            "ip": "76.223.54.146",
+            "source": "passive"
+        }
+    ]
+}

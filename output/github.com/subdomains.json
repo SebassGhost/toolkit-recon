@@ -1,0 +1,29 @@
+{
+    "module": "subdomain_enum",
+    "target": "github.com",
+    "count": 4,
+    "wildcard": false,
+    "wildcard_ips": [],
+    "results": [
+        {
+            "subdomain": "www.github.com",
+            "ip": "1",
+            "source": "brute"
+        },
+        {
+            "subdomain": "api.github.com",
+            "ip": "1",
+            "source": "brute"
+        },
+        {
+            "subdomain": "test.github.com",
+            "ip": "1",
+            "source": "brute"
+        },
+        {
+            "subdomain": "admin.github.com",
+            "ip": "1",
+            "source": "brute"
+        }
+    ]
+}

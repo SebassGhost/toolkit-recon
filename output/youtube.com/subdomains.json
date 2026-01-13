@@ -1,0 +1,38 @@
+{
+    "module": "subdomain_enum",
+    "target": "youtube.com",
+    "count": 6,
+    "wildcard": false,
+    "results": [
+        {
+            "subdomain": "www.youtube.com",
+            "ip": "172.217.30.206",
+            "source": "brute"
+        },
+        {
+            "subdomain": "admin.youtube.com",
+            "ip": "142.251.129.206",
+            "source": "brute"
+        },
+        {
+            "subdomain": "ads.youtube.com",
+            "ip": "142.251.129.206",
+            "source": "passive"
+        },
+        {
+            "subdomain": "cms.youtube.com",
+            "ip": "142.251.129.206",
+            "source": "passive"
+        },
+        {
+            "subdomain": "youtube.com",
+            "ip": "172.217.162.110",
+            "source": "passive"
+        },
+        {
+            "subdomain": "upload.youtube.com",
+            "ip": "172.217.28.111",
+            "source": "passive"
+        }
+    ]
+}

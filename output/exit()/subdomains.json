@@ -1,0 +1,7 @@
+{
+    "module": "subdomain_enum",
+    "target": "exit()",
+    "count": 0,
+    "wildcard": false,
+    "results": []
+}

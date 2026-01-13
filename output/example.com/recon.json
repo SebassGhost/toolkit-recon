@@ -1,53 +1,31 @@
 {
     "target": "example.com",
-    "recon": {
-        "domain_enum": {
-            "module": "domain_enum",
-            "target": "example.com",
-            "results": [
-                {
-                    "domain": "example.com",
-                    "ip": "104.18.27.120"
-                }
-            ]
-        },
+    "timestamp": "2026-01-09T21:09:22.018526Z",
+    "modules": {
         "subdomain_enum": {
             "module": "subdomain_enum",
             "target": "example.com",
+            "count": 3,
+            "wildcard": false,
             "results": [
-                "www.example.com"
-            ]
-        },
-        "endpoint_discovery": {
-            "module": "endpoint_discovery",
-            "target": "example.com",
-            "endpoints": [
                 {
-                    "endpoint": "/admin",
-                    "status": 404
+                    "subdomain": "www.example.com",
+                    "ip": "104.18.26.120",
+                    "source": "brute"
                 },
                 {
-                    "endpoint": "/login",
-                    "status": 404
+                    "subdomain": "example.com",
+                    "ip": "104.18.27.120",
+                    "source": "passive"
                 },
                 {
-                    "endpoint": "/dashboard",
-                    "status": 404
-                },
-                {
-                    "endpoint": "/api",
-                    "status": 404
-                },
-                {
-                    "endpoint": "/robots.txt",
-                    "status": 404
+                    "subdomain": "m.testexample.com",
+                    "ip": "76.223.54.146",
+                    "source": "passive"
                 }
             ]
         },
-        "tech_fingerprint": {
-            "module": "subdomain_enum",
-            "target": "example.com",
-            "results": []
-        }
+        "endpoint_discovery": {},
+        "tech_fingerprint": []
     }
 }
