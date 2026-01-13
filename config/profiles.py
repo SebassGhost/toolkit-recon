@@ -1,4 +1,12 @@
+"""
+Scan profiles for toolkit-recon
+Controls aggressiveness, speed, and noise.
+"""
+
 PROFILES = {
+    # =========================
+    # PASSIVE PROFILE
+    # =========================
     "passive": {
         "dns": {
             "bruteforce": False,
@@ -12,9 +20,13 @@ PROFILES = {
         "endpoint": {
             "wordlist": "small",
             "methods": ["GET"],
-        }
+            "max_paths": 200,
+        },
     },
 
+    # =========================
+    # BALANCED PROFILE (default)
+    # =========================
     "balanced": {
         "dns": {
             "bruteforce": True,
@@ -28,9 +40,13 @@ PROFILES = {
         "endpoint": {
             "wordlist": "medium",
             "methods": ["GET", "HEAD"],
-        }
+            "max_paths": 800,
+        },
     },
 
+    # =========================
+    # AGGRESSIVE PROFILE
+    # =========================
     "aggressive": {
         "dns": {
             "bruteforce": True,
@@ -44,6 +60,7 @@ PROFILES = {
         "endpoint": {
             "wordlist": "large",
             "methods": ["GET", "HEAD", "OPTIONS"],
-        }
-    }
+            "max_paths": 3000,
+        },
+    },
 }
