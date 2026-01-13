@@ -82,29 +82,21 @@ def probe(url: str, session: requests.Session, cfg: dict):
         "interesting": False
     }
 
-    # HEAD
     if "HEAD" in cfg["methods"]:
         try:
-            h = session.head(
-                url,
-                timeout=cfg["timeout"],
-                allow_redirects=False
-            )
+            h = session.head(url, timeout=cfg["timeout"], allow_redirects=False)
             if h.status_code < 500:
                 entry["methods"].append("HEAD")
         except Exception:
             pass
 
-    # OPTIONS
     if "OPTIONS" in cfg["methods"] and r.status_code in (200, 401, 403):
         try:
             o = session.options(url, timeout=cfg["timeout"])
             allow = o.headers.get("Allow")
             if allow:
                 entry["methods"] = sorted(set(
-                    entry["methods"] + [
-                        m.strip() for m in allow.split(",")
-                    ]
+                    entry["methods"] + [m.strip() for m in allow.split(",")]
                 ))
         except Exception:
             pass
@@ -126,22 +118,22 @@ def run(target: str, profile: str = "balanced"):
     Endpoint discovery module.
     """
 
+    cfg = PROFILES.get(profile, PROFILES["balanced"])
     http_cfg = cfg.get("http", {})
+    endpoint_cfg = cfg.get("endpoint", {})
 
     threads = http_cfg.get("threads", 10)
     timeout = http_cfg.get("timeout", 6)
     follow_redirects = http_cfg.get("follow_redirects", False)
 
+    methods = endpoint_cfg.get("methods", ["GET"])
+    wordlist_name = endpoint_cfg.get("wordlist", "medium")
+    max_paths = endpoint_cfg.get("max_paths", 500)
 
-    # Normalize base URL
     if target.startswith("http"):
         base_url = target.rstrip("/")
     else:
         base_url = f"https://{target}".rstrip("/")
-
-    wordlist_name = endpoint_cfg.get("wordlist", "medium")
-    max_paths = endpoint_cfg.get("max_paths", 500)
-    methods = endpoint_cfg.get("methods", ["GET"])
 
     paths = load_wordlist(wordlist_name)
     paths = [p for p in paths if should_scan(p)]
@@ -154,7 +146,7 @@ def run(target: str, profile: str = "balanced"):
         "User-Agent": "toolkit-recon/1.0"
     })
 
-    with ThreadPoolExecutor(max_workers=http_cfg["threads"]) as executor:
+    with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = []
 
         for path in paths:
@@ -165,8 +157,8 @@ def run(target: str, profile: str = "balanced"):
                     url,
                     session,
                     {
-                        "timeout": http_cfg["timeout"],
-                        "follow_redirects": http_cfg["follow_redirects"],
+                        "timeout": timeout,
+                        "follow_redirects": follow_redirects,
                         "methods": methods,
                     }
                 )
@@ -176,7 +168,6 @@ def run(target: str, profile: str = "balanced"):
             entry = future.result()
             if not entry:
                 continue
-
             if entry["status"] == 404:
                 continue
 
