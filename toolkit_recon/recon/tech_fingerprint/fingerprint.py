@@ -1,24 +1,32 @@
+import time
+import random
 import requests
-from toolkit_recon.config.profiles import PROFILES
+
+USER_AGENTS = [
+    "Mozilla/5.0",
+    "Mozilla/5.0 (X11; Linux x86_64)",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+]
 
 
-# =========================
-# MAIN RUNNER
-# =========================
-def run(target: str, profile: str = "balanced") -> dict:
-    cfg = PROFILES.get(profile)
-    if not cfg:
-        raise ValueError(f"Invalid profile: {profile}")
+def run(target: str, profile: dict) -> dict:
+    network = profile.get("network", {})
+    stealth = profile.get("stealth", {})
+    tech_cfg = profile.get("tech", {})
 
-    tech_cfg = cfg["tech"]
-    timeout = tech_cfg.get("timeout", 6)
+    timeout = network.get("timeout", 6)
+    follow_redirects = network.get("follow_redirects", False)
 
-    enable_graphql = tech_cfg.get("graphql", False)
-    extra_paths = tech_cfg.get("extra_paths", False)
+    delay = stealth.get("delay", 0)
+    random_ua = stealth.get("random_user_agent", False)
 
-    # -------------------------
-    # Normalize base URL
-    # -------------------------
+    headers = {}
+    if random_ua:
+        headers["User-Agent"] = random.choice(USER_AGENTS)
+
+    if delay > 0:
+        time.sleep(delay)
+
     if target.startswith("http"):
         base_url = target.rstrip("/")
     else:
@@ -27,106 +35,59 @@ def run(target: str, profile: str = "balanced") -> dict:
     data = {
         "module": "tech_fingerprint",
         "target": target,
-        "profile": profile,
-        "technologies": {
-            "server": None,
-            "cdn": None,
-            "framework": None,
-            "language": None,
-            "cookies": [],
-            "headers": {},
-            "graphql": False
-        }
+        "server": None,
+        "cdn": None,
+        "framework": None,
+        "language": None,
+        "cookies": [],
+        "headers": {},
+        "graphql": False
     }
 
-    # -------------------------
-    # Base request
-    # -------------------------
     try:
         r = requests.get(
             base_url,
             timeout=timeout,
-            allow_redirects=True
+            allow_redirects=follow_redirects,
+            headers=headers
         )
-    except Exception:
+    except Exception as e:
+        data["error"] = str(e)
         return data
 
-    headers = {k.lower(): v for k, v in r.headers.items()}
-    tech = data["technologies"]
-    tech["headers"] = headers
+    response_headers = {k.lower(): v for k, v in r.headers.items()}
+    data["headers"] = response_headers
 
-    # -------------------------
-    # CDN / Server detection
-    # -------------------------
-    server = headers.get("server", "")
-    via = headers.get("via", "")
-    cf_ray = headers.get("cf-ray")
+    # --- CDN / Server ---
+    if "cf-ray" in response_headers:
+        data["cdn"] = "cloudflare"
+    elif "akamai" in response_headers.get("via", "").lower():
+        data["cdn"] = "akamai"
 
-    if cf_ray:
-        tech["cdn"] = "cloudflare"
-    elif "akamai" in via.lower():
-        tech["cdn"] = "akamai"
-    elif "fastly" in via.lower():
-        tech["cdn"] = "fastly"
+    data["server"] = response_headers.get("server")
 
-    tech["server"] = server or None
-
-    # -------------------------
-    # Cookies fingerprint
-    # -------------------------
+    # --- Cookies ---
     cookies = r.cookies.get_dict()
-    tech["cookies"] = list(cookies.keys())
+    data["cookies"] = list(cookies.keys())
 
     if "sessionid" in cookies:
-        tech["framework"] = "django"
-        tech["language"] = "python"
+        data["framework"] = "django"
+        data["language"] = "python"
     elif "phpsessid" in cookies:
-        tech["language"] = "php"
-    elif "connect.sid" in cookies:
-        tech["framework"] = "express"
-        tech["language"] = "nodejs"
+        data["language"] = "php"
 
-    # -------------------------
-    # Headers fingerprint
-    # -------------------------
-    powered = headers.get("x-powered-by", "").lower()
-    if powered:
-        if "express" in powered:
-            tech["framework"] = "express"
-            tech["language"] = "nodejs"
-        elif "php" in powered:
-            tech["language"] = "php"
-
-    # -------------------------
-    # GraphQL probe (profile-based)
-    # -------------------------
-    if enable_graphql:
+    # --- GraphQL (controlado por perfil) ---
+    if tech_cfg.get("graphql", False):
         try:
             g = requests.post(
                 f"{base_url}/graphql",
                 json={"query": "{__typename}"},
-                timeout=timeout
+                timeout=timeout,
+                headers=headers
             )
-            if g.status_code in [200, 400]:
-                tech["graphql"] = True
+            if g.status_code in (200, 400):
+                data["graphql"] = True
         except Exception:
             pass
-
-    # -------------------------
-    # Extra probes (aggressive only)
-    # -------------------------
-    if extra_paths:
-        common_paths = ["/api", "/api/v1", "/admin"]
-        for p in common_paths:
-            try:
-                r2 = requests.get(
-                    base_url + p,
-                    timeout=timeout,
-                    allow_redirects=False
-                )
-                if r2.status_code in [200, 401, 403]:
-                    tech.setdefault("extra_endpoints", []).append(p)
-            except Exception:
-                pass
 
     return data
