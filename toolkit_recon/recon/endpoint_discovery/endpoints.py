@@ -2,36 +2,27 @@ import os
 import requests
 from urllib.parse import urljoin
 
+from toolkit_recon.config.profiles import PROFILES
+
 # -------------------------
-# Configuración
+# Configuración general
 # -------------------------
 INTERESTING_KEYWORDS = [
     "admin", "api", "login", "dashboard", "upload", "graphql"
 ]
 
 BASE_DIR = os.path.dirname(__file__)
-WORDLIST = os.path.join(BASE_DIR, "common_paths.txt")
-
-MAX_PATHS = 150          # Límite duro
-MAX_EMPTY = 25           # Cortar si no hay resultados seguidos
-TIMEOUT = 6
-
-BIG_TARGETS = [
-    "github.com",
-    "google.com",
-    "microsoft.com",
-    "cloudflare.com"
-]
+WORDLIST_FILE = os.path.join(BASE_DIR, "common_paths.txt")
 
 
 # -------------------------
 # Load wordlist
 # -------------------------
 def load_wordlist():
-    if not os.path.exists(WORDLIST):
+    if not os.path.exists(WORDLIST_FILE):
         return []
 
-    with open(WORDLIST, "r", encoding="utf-8") as f:
+    with open(WORDLIST_FILE, "r", encoding="utf-8") as f:
         return [
             "/" + line.strip().lstrip("/")
             for line in f
@@ -62,47 +53,59 @@ def is_interesting(path, status, length):
     return any(k in path.lower() for k in INTERESTING_KEYWORDS)
 
 
-# -------------------------
+# =========================
 # Runner principal
-# -------------------------
-def run(target: str):
+# =========================
+def run(target: str, profile="balanced"):
+    # =========================
+    # LOAD PROFILE 
+    # =========================
+    cfg = PROFILES.get(profile)
+    if not cfg:
+        raise ValueError(f"Invalid profile: {profile}")
 
-    # Normalizar URL base
+    endpoint_cfg = cfg["endpoint"]
+    http_cfg = cfg["http"]
+
+    max_paths = endpoint_cfg["max_paths"]
+    methods_enabled = endpoint_cfg["methods"]
+
+    timeout = http_cfg["timeout"]
+
+    # =========================
+    # NORMALIZAR TARGET
+    # =========================
     if target.startswith("http"):
         base_url = target.rstrip("/")
     else:
         base_url = f"https://{target}".rstrip("/")
 
-    paths = load_wordlist()
-
-    # Targets grandes → modo conservador
-    if any(t in target for t in BIG_TARGETS):
-        paths = paths[:50]
-    else:
-        paths = paths[:MAX_PATHS]
-
+    paths = load_wordlist()[:max_paths]
     results = []
 
-    # -------------------------
-    # Baseline Soft-404
-    # -------------------------
+    # =========================
+    # BASELINE SOFT-404
+    # =========================
+    baseline_status = None
+    baseline_length = None
+
     try:
         fake = requests.get(
             f"{base_url}/this_should_not_exist_987654",
-            timeout=TIMEOUT,
+            timeout=timeout,
             allow_redirects=False
         )
         baseline_status = fake.status_code
         baseline_length = len(fake.content)
     except Exception:
-        baseline_status = None
-        baseline_length = None
+        pass
 
     empty_hits = 0
+    max_empty = endpoint_cfg.get("max_empty", 25)
 
-    # -------------------------
-    # Endpoint Discovery
-    # -------------------------
+    # =========================
+    # ENDPOINT DISCOVERY
+    # =========================
     for path in paths:
 
         if not should_scan(path):
@@ -113,7 +116,7 @@ def run(target: str):
         try:
             r = requests.get(
                 url,
-                timeout=TIMEOUT,
+                timeout=timeout,
                 allow_redirects=False
             )
         except Exception:
@@ -129,7 +132,7 @@ def run(target: str):
         else:
             empty_hits = 0
 
-        if empty_hits >= MAX_EMPTY:
+        if empty_hits >= max_empty:
             break
 
         if r.status_code == 404:
@@ -147,17 +150,22 @@ def run(target: str):
         }
 
         # HEAD
-        try:
-            h = requests.head(url, timeout=4, allow_redirects=False)
-            if h.status_code < 500:
-                entry["methods"].append("HEAD")
-        except Exception:
-            pass
-
-        # OPTIONS solo si vale la pena
-        if r.status_code in [200, 401, 403]:
+        if "HEAD" in methods_enabled:
             try:
-                o = requests.options(url, timeout=4)
+                h = requests.head(
+                    url,
+                    timeout=timeout,
+                    allow_redirects=False
+                )
+                if h.status_code < 500:
+                    entry["methods"].append("HEAD")
+            except Exception:
+                pass
+
+        # OPTIONS
+        if "OPTIONS" in methods_enabled and r.status_code in [200, 401, 403]:
+            try:
+                o = requests.options(url, timeout=timeout)
                 allow = o.headers.get("Allow")
                 if allow:
                     entry["methods"] = sorted(set(
@@ -176,9 +184,13 @@ def run(target: str):
 
         results.append(entry)
 
+    # =========================
+    # RETURN FRAMEWORK DATA
+    # =========================
     return {
         "module": "endpoint_discovery",
         "target": target,
+        "profile": profile,
         "count": len(results),
         "results": results
     }
