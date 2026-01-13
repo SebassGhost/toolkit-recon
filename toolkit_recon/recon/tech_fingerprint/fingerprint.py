@@ -1,86 +1,132 @@
 import requests
+from toolkit_recon.config.profiles import PROFILES
 
-TIMEOUT = 6
 
+# =========================
+# MAIN RUNNER
+# =========================
+def run(target: str, profile: str = "balanced") -> dict:
+    cfg = PROFILES.get(profile)
+    if not cfg:
+        raise ValueError(f"Invalid profile: {profile}")
 
-def run(target: str):
+    tech_cfg = cfg["tech"]
+    timeout = tech_cfg.get("timeout", 6)
+
+    enable_graphql = tech_cfg.get("graphql", False)
+    extra_paths = tech_cfg.get("extra_paths", False)
+
+    # -------------------------
+    # Normalize base URL
+    # -------------------------
     if target.startswith("http"):
         base_url = target.rstrip("/")
     else:
         base_url = f"https://{target}".rstrip("/")
 
     data = {
-        "server": None,
-        "cdn": None,
-        "framework": None,
-        "language": None,
-        "cookies": [],
-        "headers": {},
-        "graphql": False
+        "module": "tech_fingerprint",
+        "target": target,
+        "profile": profile,
+        "technologies": {
+            "server": None,
+            "cdn": None,
+            "framework": None,
+            "language": None,
+            "cookies": [],
+            "headers": {},
+            "graphql": False
+        }
     }
 
+    # -------------------------
+    # Base request
+    # -------------------------
     try:
-        r = requests.get(base_url, timeout=TIMEOUT, allow_redirects=True)
+        r = requests.get(
+            base_url,
+            timeout=timeout,
+            allow_redirects=True
+        )
     except Exception:
         return data
 
     headers = {k.lower(): v for k, v in r.headers.items()}
-    data["headers"] = headers
+    tech = data["technologies"]
+    tech["headers"] = headers
 
     # -------------------------
-    # Server / CDN detection
+    # CDN / Server detection
     # -------------------------
     server = headers.get("server", "")
     via = headers.get("via", "")
     cf_ray = headers.get("cf-ray")
 
     if cf_ray:
-        data["cdn"] = "cloudflare"
+        tech["cdn"] = "cloudflare"
     elif "akamai" in via.lower():
-        data["cdn"] = "akamai"
+        tech["cdn"] = "akamai"
     elif "fastly" in via.lower():
-        data["cdn"] = "fastly"
+        tech["cdn"] = "fastly"
 
-    data["server"] = server or None
+    tech["server"] = server or None
 
     # -------------------------
     # Cookies fingerprint
     # -------------------------
     cookies = r.cookies.get_dict()
-    data["cookies"] = list(cookies.keys())
+    tech["cookies"] = list(cookies.keys())
 
     if "sessionid" in cookies:
-        data["framework"] = "django"
-        data["language"] = "python"
+        tech["framework"] = "django"
+        tech["language"] = "python"
     elif "phpsessid" in cookies:
-        data["language"] = "php"
+        tech["language"] = "php"
     elif "connect.sid" in cookies:
-        data["framework"] = "express"
-        data["language"] = "nodejs"
+        tech["framework"] = "express"
+        tech["language"] = "nodejs"
 
     # -------------------------
     # Headers fingerprint
     # -------------------------
-    if "x-powered-by" in headers:
-        powered = headers["x-powered-by"].lower()
+    powered = headers.get("x-powered-by", "").lower()
+    if powered:
         if "express" in powered:
-            data["framework"] = "express"
-            data["language"] = "nodejs"
+            tech["framework"] = "express"
+            tech["language"] = "nodejs"
         elif "php" in powered:
-            data["language"] = "php"
+            tech["language"] = "php"
 
     # -------------------------
-    # GraphQL quick probe
+    # GraphQL probe (profile-based)
     # -------------------------
-    try:
-        g = requests.post(
-            f"{base_url}/graphql",
-            json={"query": "{__typename}"},
-            timeout=TIMEOUT
-        )
-        if g.status_code in [200, 400]:
-            data["graphql"] = True
-    except Exception:
-        pass
+    if enable_graphql:
+        try:
+            g = requests.post(
+                f"{base_url}/graphql",
+                json={"query": "{__typename}"},
+                timeout=timeout
+            )
+            if g.status_code in [200, 400]:
+                tech["graphql"] = True
+        except Exception:
+            pass
+
+    # -------------------------
+    # Extra probes (aggressive only)
+    # -------------------------
+    if extra_paths:
+        common_paths = ["/api", "/api/v1", "/admin"]
+        for p in common_paths:
+            try:
+                r2 = requests.get(
+                    base_url + p,
+                    timeout=timeout,
+                    allow_redirects=False
+                )
+                if r2.status_code in [200, 401, 403]:
+                    tech.setdefault("extra_endpoints", []).append(p)
+            except Exception:
+                pass
 
     return data
