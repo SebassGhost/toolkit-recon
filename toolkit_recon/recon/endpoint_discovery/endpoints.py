@@ -126,10 +126,12 @@ def run(target: str, profile: str = "balanced"):
     Endpoint discovery module.
     """
 
-    cfg = PROFILES.get(profile, PROFILES["balanced"])
+    http_cfg = cfg.get("http", {})
 
-    http_cfg = cfg["http"]
-    endpoint_cfg = cfg["endpoint"]
+    threads = http_cfg.get("threads", 10)
+    timeout = http_cfg.get("timeout", 6)
+    follow_redirects = http_cfg.get("follow_redirects", False)
+
 
     # Normalize base URL
     if target.startswith("http"):
