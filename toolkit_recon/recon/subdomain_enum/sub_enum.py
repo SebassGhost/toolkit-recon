@@ -11,9 +11,9 @@ WORDLIST_FILE = os.path.join(
 )
 
 
-# =========================
+# -------------------------
 # Load wordlist
-# =========================
+# -------------------------
 def load_wordlist():
     if not os.path.exists(WORDLIST_FILE):
         return []
@@ -22,18 +22,15 @@ def load_wordlist():
         return [line.strip() for line in f if line.strip()]
 
 
-# =========================
-# MAIN RUNNER
-# =========================
+# -------------------------
+# Main runner
+# -------------------------
 def run(target: str, profile: str = "balanced") -> dict:
-    cfg = PROFILES.get(profile)
-    if not cfg:
-        raise ValueError(f"Invalid profile: {profile}")
+    cfg = PROFILES.get(profile, PROFILES["balanced"])
+    dns_cfg = cfg["dns"]
 
-    sub_cfg = cfg["subdomain"]
-
-    use_passive = sub_cfg["passive"]
-    max_bruteforce = sub_cfg["max_bruteforce"]
+    bruteforce_enabled = dns_cfg.get("bruteforce", True)
+    max_subdomains = dns_cfg.get("max_subdomains", 500)
 
     results = []
     seen = set()
@@ -43,45 +40,20 @@ def run(target: str, profile: str = "balanced") -> dict:
     # -------------------------
     wildcard_info = detect_wildcard(target)
     wildcard_ips = wildcard_info.get("ips", [])
-
-    if wildcard_info.get("wildcard"):
-        print(f"[!] Wildcard DNS detected ({', '.join(wildcard_ips)})")
-    else:
-        print("[+] No wildcard DNS detected")
+    wildcard_enabled = wildcard_info.get("wildcard", False)
 
     # -------------------------
-    # Active / Bruteforce
+    # Active / Bruteforce enum
     # -------------------------
-    wordlist = load_wordlist()[:max_bruteforce]
+    if bruteforce_enabled:
+        wordlist = load_wordlist()
 
-    for word in wordlist:
-        subdomain = f"{word}.{target}"
-        ips = resolve(subdomain)
+        for word in wordlist:
+            if len(results) >= max_subdomains:
+                break
 
-        if not ips:
-            continue
+            subdomain = f"{word}.{target}"
 
-        # Skip pure wildcard matches
-        if wildcard_ips and all(ip in wildcard_ips for ip in ips):
-            continue
-
-        if subdomain in seen:
-            continue
-
-        seen.add(subdomain)
-        results.append({
-            "subdomain": subdomain,
-            "ip": ips[0],
-            "source": "brute"
-        })
-
-    # -------------------------
-    # Passive enumeration
-    # -------------------------
-    if use_passive:
-        passive_subs = passive_enum(target)
-
-        for subdomain in passive_subs:
             if subdomain in seen:
                 continue
 
@@ -89,22 +61,52 @@ def run(target: str, profile: str = "balanced") -> dict:
             if not ips:
                 continue
 
-            if wildcard_ips and all(ip in wildcard_ips for ip in ips):
+            # Skip wildcard-only results
+            if wildcard_enabled and all(ip in wildcard_ips for ip in ips):
                 continue
 
             seen.add(subdomain)
             results.append({
                 "subdomain": subdomain,
                 "ip": ips[0],
-                "source": "passive"
+                "source": "bruteforce"
             })
+
+    # -------------------------
+    # Passive enum
+    # -------------------------
+    try:
+        passive_subs = passive_enum(target)
+    except Exception:
+        passive_subs = []
+
+    for subdomain in passive_subs:
+        if len(results) >= max_subdomains:
+            break
+
+        if subdomain in seen:
+            continue
+
+        ips = resolve(subdomain)
+        if not ips:
+            continue
+
+        if wildcard_enabled and all(ip in wildcard_ips for ip in ips):
+            continue
+
+        seen.add(subdomain)
+        results.append({
+            "subdomain": subdomain,
+            "ip": ips[0],
+            "source": "passive"
+        })
 
     return {
         "module": "subdomain_enum",
         "target": target,
         "profile": profile,
         "count": len(results),
-        "wildcard": wildcard_info.get("wildcard", False),
+        "wildcard": wildcard_enabled,
         "wildcard_ips": wildcard_ips,
         "results": results
     }
