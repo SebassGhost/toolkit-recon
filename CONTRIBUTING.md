@@ -12,7 +12,7 @@ Gracias por contribuir a Toolkit-Recon.
 ## Flujo Recomendado
 
 1. Crea una rama: `feat/<descripcion-corta>` o `fix/<descripcion-corta>`.
-2. Implementa cambios pequenos y comprobables.
+2. Implementa cambios pequeños y comprobables.
 3. Ejecuta:
 
 ```bash
