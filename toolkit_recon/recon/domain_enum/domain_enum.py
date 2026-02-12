@@ -1,5 +1,6 @@
 import socket
 import time
+
 from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_profile
 

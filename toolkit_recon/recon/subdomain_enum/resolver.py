@@ -1,7 +1,9 @@
 import random
 import string
 from functools import lru_cache
+
 import dns.resolver
+
 from toolkit_recon.config.profiles import get_http_config
 
 

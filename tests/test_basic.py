@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, Mock, patch
 
-from toolkit_recon.config.profiles import get_http_config
 from toolkit_recon import SCHEMA_VERSION
+from toolkit_recon.config.profiles import get_http_config
 from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_run
-from toolkit_recon.recon.tech_fingerprint.fingerprint import run as fingerprint_run
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_run
+from toolkit_recon.recon.tech_fingerprint.fingerprint import run as fingerprint_run
 
 
 def test_get_http_config_contains_timeout_and_redirect_flags():

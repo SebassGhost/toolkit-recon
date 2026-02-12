@@ -1,10 +1,11 @@
 import os
 import time
+
 from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_profile
-from .resolver import resolve, detect_wildcard
-from .sources.passive import run as passive_enum
 
+from .resolver import detect_wildcard, resolve
+from .sources.passive import run as passive_enum
 
 WORDLIST_FILE = os.path.join(
     os.path.dirname(__file__),

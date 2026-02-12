@@ -1,8 +1,9 @@
-import requests
 import time
 
+import requests
+
 from toolkit_recon import SCHEMA_VERSION
-from toolkit_recon.config.profiles import get_profile, get_http_config
+from toolkit_recon.config.profiles import get_http_config, get_profile
 
 
 # -------------------------

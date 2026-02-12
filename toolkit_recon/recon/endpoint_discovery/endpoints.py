@@ -10,7 +10,6 @@ import httpx
 from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_http_config, get_profile
 
-
 INTERESTING_KEYWORDS = [
     "admin",
     "api",
@@ -31,7 +30,10 @@ WORDLISTS = {
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
+    (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
+        "AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15"
+    ),
 ]
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
@@ -248,7 +250,10 @@ async def _run_async(target: str, profile: str = "balanced"):
     limiter = AsyncRateLimiter(http_cfg.get("max_rps", 0))
     semaphore = asyncio.Semaphore(max(1, int(threads)))
 
-    limits = httpx.Limits(max_connections=max(20, threads * 2), max_keepalive_connections=max(10, threads))
+    limits = httpx.Limits(
+        max_connections=max(20, threads * 2),
+        max_keepalive_connections=max(10, threads),
+    )
     transport = httpx.AsyncHTTPTransport(retries=0)
     start = time.perf_counter()
 

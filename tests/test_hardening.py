@@ -1,5 +1,4 @@
 import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from toolkit_recon.recon.subdomain_enum.sources.passive import _is_target_subdomain

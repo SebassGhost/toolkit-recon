@@ -2,7 +2,6 @@
 import argparse
 import sys
 
-
 DEFAULT_PROFILE = "balanced"
 
 COMMAND_ALIASES = {

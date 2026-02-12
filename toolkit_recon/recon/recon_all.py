@@ -1,10 +1,10 @@
-from datetime import datetime
 import time
+from datetime import datetime
 
 from toolkit_recon import SCHEMA_VERSION
+from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 from toolkit_recon.recon.osint_username.username import run as osint_username_run
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_enum_run
-from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 from toolkit_recon.recon.tech_fingerprint.fingerprint import run as tech_fingerprint_run
 from toolkit_recon.utils.output import save_full_recon, save_output
 
