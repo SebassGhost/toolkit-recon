@@ -2,13 +2,14 @@ from datetime import datetime
 import time
 
 from toolkit_recon import SCHEMA_VERSION
+from toolkit_recon.recon.osint_username.username import run as osint_username_run
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_enum_run
 from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 from toolkit_recon.recon.tech_fingerprint.fingerprint import run as tech_fingerprint_run
 from toolkit_recon.utils.output import save_full_recon, save_output
 
 
-def run(target: str, profile: str = "balanced") -> dict:
+def run(target: str, profile: str = "balanced", osint_user: str | None = None) -> dict:
     results = {
         "schema_version": SCHEMA_VERSION,
         "target": target,
@@ -127,6 +128,27 @@ def run(target: str, profile: str = "balanced") -> dict:
         "graphql_probes_attempted": tech_graphql_probes,
     }
     save_output(target, "tech_fingerprint", tech_data)
+
+    # =========================
+    # OSINT Username (optional)
+    # =========================
+    if osint_user:
+        print("[*] OSINT username")
+        start = time.perf_counter()
+        try:
+            osint_data = osint_username_run(osint_user, profile=profile)
+            results["modules"]["osint_username"] = osint_data
+            save_output(target, "osint_username", osint_data)
+        except Exception as e:
+            results["modules"]["osint_username"] = {"error": str(e)}
+        osint_metrics = (
+            results["modules"]
+            .get("osint_username", {})
+            .get("metrics", {})
+        )
+        osint_metrics["duration_seconds_total"] = round(time.perf_counter() - start, 4)
+        results["metrics"]["osint_username"] = osint_metrics
+
     save_full_recon(target, results)
 
     return results

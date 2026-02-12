@@ -9,7 +9,7 @@ Los autores no se hacen responsables del uso indebido.
 
 ## Caracteristicas
 
-- Arquitectura modular (`domain`, `subdomain`, `endpoint`, `tech`)
+- Arquitectura modular (`domain`, `subdomain`, `endpoint`, `tech`, `osint_username`)
 - Comandos CLI para ejecuciones puntuales y recon completo
 - Perfiles de ejecucion: `passive`, `balanced`, `aggressive`
 - Esquema de salida versionado (`schema_version`)
@@ -32,7 +32,9 @@ Ejecuta como modulo de Python desde la raiz del proyecto:
 python -m toolkit_recon.main subdomain example.com
 python -m toolkit_recon.main endpoints example.com
 python -m toolkit_recon.main tech example.com
+python -m toolkit_recon.main osint-user nombre_usuario
 python -m toolkit_recon.main recon-all example.com --profile balanced
+python -m toolkit_recon.main recon-all example.com --profile balanced --osint-user nombre_usuario
 ```
 
 ## Salida
@@ -49,6 +51,7 @@ Archivos principales:
 - `output/<target>/endpoints.json`
 - `output/<target>/tech_fingerprint.json`
 - `output/<target>/recon.json`
+- `output/<target>/osint_username.json` (si usas `osint-user`)
 
 Los archivos incluyen `schema_version` para mantener compatibilidad hacia adelante.
 
@@ -86,6 +89,7 @@ Cada modulo expone metricas:
 - `subdomain_enum`: intentos DNS, filtrado por wildcard, duracion
 - `endpoint_discovery`: rutas intentadas/completadas, reintentos, errores, rendimiento
 - `tech_fingerprint`: intentos/exitos HTTP, intentos GraphQL, duracion
+- `osint_username`: perfiles encontrados, errores y duracion de ejecucion
 
 ## Desarrollo
 

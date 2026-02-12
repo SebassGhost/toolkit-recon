@@ -9,7 +9,9 @@ Desde la raiz del proyecto:
 python -m toolkit_recon.main subdomain example.com --profile passive
 python -m toolkit_recon.main endpoints example.com --profile balanced
 python -m toolkit_recon.main tech example.com --profile balanced
+python -m toolkit_recon.main osint-user nombre_usuario --profile balanced
 python -m toolkit_recon.main recon-all example.com --profile aggressive
+python -m toolkit_recon.main recon-all example.com --profile balanced --osint-user nombre_usuario
 ```
 
 ## Perfiles
@@ -26,6 +28,7 @@ Se generan en `output/<target>/`:
 - `endpoints.json`
 - `tech_fingerprint.json`
 - `recon.json`
+- `osint_username.json` (opcional)
 
 Cada archivo incluye `schema_version` para mantener compatibilidad.
 
