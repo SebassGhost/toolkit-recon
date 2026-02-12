@@ -3,6 +3,23 @@ import argparse
 import sys
 
 
+DEFAULT_PROFILE = "balanced"
+
+COMMAND_ALIASES = {
+    "subdomain": ["sub", "s"],
+    "endpoints": ["ep", "e"],
+    "tech": ["t"],
+    "osint-user": ["osint", "o"],
+    "recon-all": ["recon", "r"],
+}
+
+COMMAND_CANONICAL = {
+    token: command
+    for command, aliases in COMMAND_ALIASES.items()
+    for token in [command] + aliases
+}
+
+
 class C:
     RED = "\033[91m"
     GREEN = "\033[92m"
@@ -16,34 +33,103 @@ def banner():
     print("Modular reconnaissance toolkit\n")
 
 
-def parse_args():
+def _normalize_argv(argv: list[str]) -> list[str]:
+    if not argv:
+        return argv
+
+    first = argv[0]
+    if first.startswith("-"):
+        return argv
+    if first in COMMAND_CANONICAL:
+        return argv
+
+    # Fast mode: if first argument looks like a target, default to recon-all.
+    return ["recon-all"] + argv
+
+
+def _add_common_args(parser: argparse.ArgumentParser, target_help: str):
+    parser.add_argument(
+        "--profile",
+        choices=["passive", "balanced", "aggressive"],
+        default=None,
+        help="Perfil de agresividad del escaneo",
+    )
+    parser.add_argument(
+        "-t",
+        "--target",
+        dest="target_opt",
+        default=None,
+        help=target_help,
+    )
+    parser.add_argument("target", nargs="?", help=target_help)
+
+
+def _resolve_target(args: argparse.Namespace) -> str:
+    target = getattr(args, "target", None) or getattr(args, "target_opt", None)
+    if not target:
+        raise ValueError("Debes indicar target con positional o -t/--target.")
+    return target
+
+
+def parse_args(argv: list[str] | None = None):
+    argv = _normalize_argv(argv if argv is not None else sys.argv[1:])
+
     parser = argparse.ArgumentParser(
-        description="Recon framework for bug bounty and pentesting"
+        description="Recon framework for bug bounty and pentesting",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog=(
+            "Ejemplos:\n"
+            "  python -m toolkit_recon.main recon-all example.com\n"
+            "  python -m toolkit_recon.main r -t example.com --profile passive\n"
+            "  python -m toolkit_recon.main example.com\n"
+            "  python -m toolkit_recon.main osint-user octocat"
+        ),
     )
 
     parser.add_argument(
         "--profile",
+        dest="global_profile",
         choices=["passive", "balanced", "aggressive"],
-        default="balanced",
-        help="Scan aggressiveness profile",
+        default=DEFAULT_PROFILE,
+        help="Perfil global por defecto (aplica si el subcomando no define --profile).",
     )
 
     subparsers = parser.add_subparsers(dest="command")
 
-    sub = subparsers.add_parser("subdomain", help="Subdomain enumeration")
-    sub.add_argument("target", help="Target domain")
+    sub = subparsers.add_parser(
+        "subdomain",
+        aliases=COMMAND_ALIASES["subdomain"],
+        help="Subdomain enumeration",
+    )
+    _add_common_args(sub, "Dominio objetivo")
 
-    ep = subparsers.add_parser("endpoints", help="Endpoint discovery")
-    ep.add_argument("target", help="Target domain or subdomain")
+    ep = subparsers.add_parser(
+        "endpoints",
+        aliases=COMMAND_ALIASES["endpoints"],
+        help="Endpoint discovery",
+    )
+    _add_common_args(ep, "Dominio o subdominio objetivo")
 
-    tech = subparsers.add_parser("tech", help="Technology fingerprinting")
-    tech.add_argument("target", help="Target domain or subdomain")
+    tech = subparsers.add_parser(
+        "tech",
+        aliases=COMMAND_ALIASES["tech"],
+        help="Technology fingerprinting",
+    )
+    _add_common_args(tech, "Dominio o subdominio objetivo")
 
-    osint_user = subparsers.add_parser("osint-user", help="OSINT username lookup")
-    osint_user.add_argument("target", help="Username")
+    osint_user = subparsers.add_parser(
+        "osint-user",
+        aliases=COMMAND_ALIASES["osint-user"],
+        help="OSINT username lookup",
+    )
+    _add_common_args(osint_user, "Username")
 
-    recon = subparsers.add_parser("recon-all", help="Full reconnaissance")
-    recon.add_argument("target", help="Target domain")
+    recon = subparsers.add_parser(
+        "recon-all",
+        aliases=COMMAND_ALIASES["recon-all"],
+        help="Full reconnaissance",
+    )
+    _add_common_args(recon, "Dominio objetivo")
     recon.add_argument(
         "--osint-user",
         dest="osint_user",
@@ -51,16 +137,21 @@ def parse_args():
         help="Username para enriquecer recon con OSINT (Sherlock)",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args(argv)
+    args.command = COMMAND_CANONICAL.get(args.command, args.command)
+    args.profile = getattr(args, "profile", None) or args.global_profile or DEFAULT_PROFILE
+    return args
 
 
 def cmd_subdomain(args):
     from toolkit_recon.recon.subdomain_enum.sub_enum import run
     from toolkit_recon.utils.output import save_output, save_recon
 
+    target = _resolve_target(args)
+
     print(C.BLUE + "\n--- Subdomain Enumeration ---" + C.RESET)
 
-    data = run(args.target, profile=args.profile)
+    data = run(target, profile=args.profile)
 
     results = data.get("results", [])
     print(C.GREEN + f"[+] {len(results)} subdomains found\n" + C.RESET)
@@ -72,17 +163,19 @@ def cmd_subdomain(args):
             f"({r.get('source', 'unknown')})"
         )
 
-    save_output(args.target, "subdomains", data)
-    save_recon(args.target, "subdomain_enum", data)
+    save_output(target, "subdomains", data)
+    save_recon(target, "subdomain_enum", data)
 
 
 def cmd_endpoints(args):
     from toolkit_recon.recon.endpoint_discovery.endpoints import run
     from toolkit_recon.utils.output import save_output, save_recon
 
+    target = _resolve_target(args)
+
     print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
 
-    data = run(args.target, profile=args.profile)
+    data = run(target, profile=args.profile)
     endpoints = data.get("results", [])
 
     if not endpoints:
@@ -105,17 +198,19 @@ def cmd_endpoints(args):
             f"time={metrics.get('duration_seconds', 0)}s"
         )
 
-    save_output(args.target, "endpoints", data)
-    save_recon(args.target, "endpoint_discovery", data)
+    save_output(target, "endpoints", data)
+    save_recon(target, "endpoint_discovery", data)
 
 
 def cmd_tech(args):
     from toolkit_recon.recon.tech_fingerprint.fingerprint import run
     from toolkit_recon.utils.output import save_output, save_recon
 
+    target = _resolve_target(args)
+
     print(C.BLUE + "\n--- Tech Fingerprinting ---" + C.RESET)
 
-    data = run(args.target, profile=args.profile)
+    data = run(target, profile=args.profile)
 
     techs = data.get("technologies", {})
     print(C.GREEN + "[+] Technologies detected:\n" + C.RESET)
@@ -123,17 +218,19 @@ def cmd_tech(args):
     for k, v in techs.items():
         print(f" - {k}: {v}")
 
-    save_output(args.target, "tech_fingerprint", data)
-    save_recon(args.target, "tech_fingerprint", data)
+    save_output(target, "tech_fingerprint", data)
+    save_recon(target, "tech_fingerprint", data)
 
 
 def cmd_osint_user(args):
     from toolkit_recon.recon.osint_username.username import run
     from toolkit_recon.utils.output import save_output, save_recon
 
+    target = _resolve_target(args)
+
     print(C.BLUE + "\n--- OSINT Username ---" + C.RESET)
 
-    data = run(args.target, profile=args.profile)
+    data = run(target, profile=args.profile)
     found = data.get("metrics", {}).get("found", 0)
     errors = data.get("metrics", {}).get("errors", 0)
 
@@ -146,33 +243,25 @@ def cmd_osint_user(args):
     for item in data.get("results", []):
         print(f" - {item.get('site')}: {item.get('url')}")
 
-    save_output(args.target, "osint_username", data)
-    save_recon(args.target, "osint_username", data)
+    save_output(target, "osint_username", data)
+    save_recon(target, "osint_username", data)
 
 
 def cmd_recon_all(args):
     from toolkit_recon.recon.recon_all import run
 
+    target = _resolve_target(args)
+
     print(C.BLUE + "\n--- Recon All ---" + C.RESET)
     data = run(
-        args.target,
+        target,
         profile=args.profile,
         osint_user=args.osint_user,
     )
 
-    sub_count = (
-        data.get("modules", {})
-        .get("subdomain_enum", {})
-        .get("count", 0)
-    )
-    endpoint_targets = len(
-        data.get("modules", {})
-        .get("endpoint_discovery", {})
-    )
-    tech_targets = len(
-        data.get("modules", {})
-        .get("tech_fingerprint", {})
-    )
+    sub_count = data.get("modules", {}).get("subdomain_enum", {}).get("count", 0)
+    endpoint_targets = len(data.get("modules", {}).get("endpoint_discovery", {}))
+    tech_targets = len(data.get("modules", {}).get("tech_fingerprint", {}))
     osint_found = (
         data.get("modules", {})
         .get("osint_username", {})

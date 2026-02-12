@@ -29,11 +29,15 @@ pip install -r requirements.txt
 Ejecuta como modulo de Python desde la raiz del proyecto:
 
 ```bash
+python -m toolkit_recon.main example.com
 python -m toolkit_recon.main subdomain example.com
+python -m toolkit_recon.main s -t example.com
 python -m toolkit_recon.main endpoints example.com
+python -m toolkit_recon.main e -t example.com --profile passive
 python -m toolkit_recon.main tech example.com
 python -m toolkit_recon.main osint-user nombre_usuario
 python -m toolkit_recon.main recon-all example.com --profile balanced
+python -m toolkit_recon.main r -t example.com --profile balanced
 python -m toolkit_recon.main recon-all example.com --profile balanced --osint-user nombre_usuario
 ```
 
