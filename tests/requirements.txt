@@ -1,6 +1,6 @@
 requests
 dnspython
 httpx
-pytest
-jsonschema
-ruff
+pytest==8.4.2
+jsonschema==4.25.1
+ruff==0.15.0
