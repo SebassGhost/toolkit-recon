@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 
 import httpx
 
+from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_http_config, get_profile
 
 
@@ -305,6 +306,7 @@ async def _run_async(target: str, profile: str = "balanced"):
     metrics["throughput_rps"] = round(metrics["completed"] / duration, 2) if duration > 0 else 0.0
 
     return {
+        "schema_version": SCHEMA_VERSION,
         "module": "endpoint_discovery",
         "target": target,
         "profile": profile,

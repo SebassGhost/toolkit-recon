@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 from toolkit_recon.config.profiles import get_http_config
+from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_run
 from toolkit_recon.recon.tech_fingerprint.fingerprint import run as fingerprint_run
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_run
@@ -42,6 +43,7 @@ def test_endpoint_discovery_returns_structured_data(mock_wordlist, mock_scan_pat
     data = endpoint_run("example.com", profile="passive")
 
     assert isinstance(data, dict)
+    assert data["schema_version"] == SCHEMA_VERSION
     assert data["count"] == 1
     assert data["metrics"]["completed"] == 1
     assert all(item["status"] != 404 for item in data["results"])
@@ -57,6 +59,7 @@ def test_fingerprint_respects_passive_graphql_flag(mock_get, mock_post):
 
     data = fingerprint_run("example.com", profile="passive")
 
+    assert data["schema_version"] == SCHEMA_VERSION
     assert data["technologies"]["graphql"] is False
     assert "metrics" in data
     assert "duration_seconds" in data["metrics"]
@@ -73,6 +76,7 @@ def test_subdomain_enum_includes_metrics(mock_wildcard, mock_resolve, mock_passi
 
     data = subdomain_run("example.com", profile="passive")
 
+    assert data["schema_version"] == SCHEMA_VERSION
     assert "metrics" in data
     assert "duration_seconds" in data["metrics"]
     assert data["count"] >= 1

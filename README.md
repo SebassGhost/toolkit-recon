@@ -1,21 +1,22 @@
 # Toolkit-Recon
 
-Modular reconnaissance and OSINT toolkit for educational pentesting workflows.
+Toolkit modular de reconocimiento y OSINT para flujos de pentesting educativo.
 
-## Legal Notice
+## Aviso Legal
 
-Use this project only on assets you own or where you have explicit authorization.
-The authors are not responsible for misuse.
+Usa este proyecto solo sobre activos propios o con autorizacion explicita.
+Los autores no se hacen responsables del uso indebido.
 
-## Features
+## Caracteristicas
 
-- Modular architecture (`domain`, `subdomain`, `endpoint`, `tech` modules)
-- CLI commands for focused scans and full recon runs
-- Profile-based behavior: `passive`, `balanced`, `aggressive`
-- JSON output per module plus consolidated `recon.json`
-- Cross-platform launchers (`.ps1`, `.bat`, `.sh`)
+- Arquitectura modular (`domain`, `subdomain`, `endpoint`, `tech`)
+- Comandos CLI para ejecuciones puntuales y recon completo
+- Perfiles de ejecucion: `passive`, `balanced`, `aggressive`
+- Esquema de salida versionado (`schema_version`)
+- Salida JSON por modulo y consolidado en `recon.json`
+- Lanzadores multiplataforma (`.ps1`, `.bat`, `.sh`)
 
-## Installation
+## Instalacion
 
 ```bash
 git clone https://github.com/SebassGhost/toolkit-recon
@@ -23,9 +24,9 @@ cd toolkit-recon
 pip install -r requirements.txt
 ```
 
-## Usage
+## Uso
 
-Run as a Python module from the project root:
+Ejecuta como modulo de Python desde la raiz del proyecto:
 
 ```bash
 python -m toolkit_recon.main subdomain example.com
@@ -34,36 +35,71 @@ python -m toolkit_recon.main tech example.com
 python -m toolkit_recon.main recon-all example.com --profile balanced
 ```
 
-## Output
+## Salida
 
-Results are stored under:
+Los resultados se guardan en:
 
 ```text
 output/<target>/
 ```
 
-Main files:
+Archivos principales:
 
 - `output/<target>/subdomains.json`
 - `output/<target>/endpoints.json`
 - `output/<target>/tech_fingerprint.json`
 - `output/<target>/recon.json`
 
-## Profiles
+Los archivos incluyen `schema_version` para mantener compatibilidad hacia adelante.
 
-- `passive`: minimal probing, lower concurrency
-- `balanced`: default profile for daily use
-- `aggressive`: larger path set and higher concurrency
+Estructura base de `recon.json`:
 
-## Development
+```json
+{
+  "schema_version": "1.0.0",
+  "target": "example.com",
+  "profile": "balanced",
+  "timestamp": "2026-02-12T00:00:00Z",
+  "modules": {
+    "subdomain_enum": {},
+    "endpoint_discovery": {},
+    "tech_fingerprint": {}
+  },
+  "metrics": {
+    "subdomain_enum": {},
+    "endpoint_discovery": {},
+    "tech_fingerprint": {}
+  }
+}
+```
 
-Install test dependencies and run tests:
+## Perfiles
+
+- `passive`: sondeo minimo, menor tasa de peticiones y metodos conservadores
+- `balanced`: perfil recomendado para uso diario
+- `aggressive`: mayor volumen de rutas, mas concurrencia y mayor tasa de peticiones
+
+## Metricas
+
+Cada modulo expone metricas:
+
+- `subdomain_enum`: intentos DNS, filtrado por wildcard, duracion
+- `endpoint_discovery`: rutas intentadas/completadas, reintentos, errores, rendimiento
+- `tech_fingerprint`: intentos/exitos HTTP, intentos GraphQL, duracion
+
+## Desarrollo
+
+Instala dependencias de pruebas y ejecuta tests:
 
 ```bash
 pip install -r tests/requirements.txt
-pytest
+python -m pytest -q
 ```
 
-## License
+## Higiene Del Repositorio
 
-MIT. See `LICENSE`.
+Los resultados de escaneo en `output/` estan ignorados por Git (`.gitignore`) y no deben subirse.
+
+## Licencia
+
+MIT. Revisa `LICENSE`.

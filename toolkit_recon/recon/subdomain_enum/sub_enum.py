@@ -1,5 +1,6 @@
 import os
 import time
+from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_profile
 from .resolver import resolve, detect_wildcard
 from .sources.passive import run as passive_enum
@@ -122,6 +123,7 @@ def run(target: str, profile: str = "balanced") -> dict:
     metrics["duration_seconds"] = round(time.perf_counter() - start, 4)
 
     return {
+        "schema_version": SCHEMA_VERSION,
         "module": "subdomain_enum",
         "target": target,
         "profile": profile,

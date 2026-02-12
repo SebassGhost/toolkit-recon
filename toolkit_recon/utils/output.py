@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from toolkit_recon import SCHEMA_VERSION
 
 
 def save_output(target: str, name: str, data: dict):
@@ -24,6 +25,7 @@ def save_recon(target: str, module_name: str, module_data: dict):
     # Create base structure when file does not exist.
     if not os.path.exists(recon_path):
         recon_data = {
+            "schema_version": SCHEMA_VERSION,
             "target": target,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "modules": {}
@@ -34,11 +36,13 @@ def save_recon(target: str, module_name: str, module_data: dict):
                 recon_data = json.load(f)
         except Exception:
             recon_data = {
+                "schema_version": SCHEMA_VERSION,
                 "target": target,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "modules": {}
             }
 
+    recon_data["schema_version"] = SCHEMA_VERSION
     recon_data["timestamp"] = datetime.utcnow().isoformat() + "Z"
     recon_data["modules"][module_name] = module_data
 
@@ -54,6 +58,7 @@ def save_full_recon(target: str, recon_data: dict):
 
     recon_path = os.path.join(base_dir, "recon.json")
     data = dict(recon_data)
+    data["schema_version"] = SCHEMA_VERSION
     data["timestamp"] = datetime.utcnow().isoformat() + "Z"
 
     with open(recon_path, "w", encoding="utf-8") as f:

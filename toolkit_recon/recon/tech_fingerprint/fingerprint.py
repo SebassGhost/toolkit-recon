@@ -1,6 +1,7 @@
 import requests
 import time
 
+from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_profile, get_http_config
 
 
@@ -31,6 +32,7 @@ def run(target: str, profile: str = "balanced") -> dict:
     base_url = normalize_url(target)
 
     data = {
+        "schema_version": SCHEMA_VERSION,
         "module": "tech_fingerprint",
         "target": target,
         "profile": profile,

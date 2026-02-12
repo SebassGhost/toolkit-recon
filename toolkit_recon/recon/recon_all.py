@@ -1,6 +1,7 @@
 from datetime import datetime
 import time
 
+from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_enum_run
 from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 from toolkit_recon.recon.tech_fingerprint.fingerprint import run as tech_fingerprint_run
@@ -9,6 +10,7 @@ from toolkit_recon.utils.output import save_full_recon, save_output
 
 def run(target: str, profile: str = "balanced") -> dict:
     results = {
+        "schema_version": SCHEMA_VERSION,
         "target": target,
         "profile": profile,
         "timestamp": datetime.utcnow().isoformat() + "Z",
