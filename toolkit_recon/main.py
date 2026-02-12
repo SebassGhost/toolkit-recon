@@ -37,6 +37,8 @@ def _normalize_argv(argv: list[str]) -> list[str]:
         return argv
 
     first = argv[0]
+    if first in {"help", "-h", "--help"}:
+        return ["--help"]
     if first.startswith("-"):
         return argv
     if first in COMMAND_CANONICAL:
@@ -284,18 +286,22 @@ def main():
         print(C.RED + "[-] No command specified\n" + C.RESET)
         sys.exit(1)
 
-    if args.command == "subdomain":
-        cmd_subdomain(args)
-    elif args.command == "endpoints":
-        cmd_endpoints(args)
-    elif args.command == "tech":
-        cmd_tech(args)
-    elif args.command == "osint-user":
-        cmd_osint_user(args)
-    elif args.command == "recon-all":
-        cmd_recon_all(args)
-    else:
-        print(C.RED + "[-] Unknown command" + C.RESET)
+    try:
+        if args.command == "subdomain":
+            cmd_subdomain(args)
+        elif args.command == "endpoints":
+            cmd_endpoints(args)
+        elif args.command == "tech":
+            cmd_tech(args)
+        elif args.command == "osint-user":
+            cmd_osint_user(args)
+        elif args.command == "recon-all":
+            cmd_recon_all(args)
+        else:
+            print(C.RED + "[-] Unknown command" + C.RESET)
+    except ValueError as exc:
+        print(C.RED + f"[-] {exc}" + C.RESET)
+        sys.exit(2)
 
 
 if __name__ == "__main__":
