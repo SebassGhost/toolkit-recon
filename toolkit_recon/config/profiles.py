@@ -1,85 +1,98 @@
 PROFILES = {
-
     "passive": {
         "network": {
             "timeout": 6,
-            "follow_redirects": False
+            "follow_redirects": False,
         },
         "stealth": {
             "random_user_agent": True,
             "delay": 0.3,
-            "respect_robots": True
+            "respect_robots": True,
         },
         "dns": {
             "bruteforce": False,
-            "max_subdomains": 100
+            "max_subdomains": 100,
         },
         "http": {
-            "threads": 5
+            "threads": 5,
         },
         "endpoint": {
             "wordlist": "small",
             "methods": ["GET"],
-            "max_paths": 200
+            "max_paths": 200,
         },
         "tech": {
             "graphql": False,
-            "extra_paths": False
-        }
+            "extra_paths": False,
+        },
     },
-
     "balanced": {
         "network": {
             "timeout": 6,
-            "follow_redirects": False
+            "follow_redirects": False,
         },
         "stealth": {
             "random_user_agent": True,
             "delay": 0.1,
-            "respect_robots": False
+            "respect_robots": False,
         },
         "dns": {
             "bruteforce": True,
-            "max_subdomains": 500
+            "max_subdomains": 500,
         },
         "http": {
-            "threads": 15
+            "threads": 15,
         },
         "endpoint": {
             "wordlist": "medium",
             "methods": ["GET", "HEAD"],
-            "max_paths": 800
+            "max_paths": 800,
         },
         "tech": {
             "graphql": True,
-            "extra_paths": False
-        }
+            "extra_paths": False,
+        },
     },
-
     "aggressive": {
         "network": {
             "timeout": 4,
-            "follow_redirects": True
+            "follow_redirects": True,
         },
         "stealth": {
             "random_user_agent": False,
-            "delay": 0
+            "delay": 0.0,
+            "respect_robots": False,
         },
         "dns": {
             "bruteforce": True,
-            "max_subdomains": 2000
+            "max_subdomains": 2000,
         },
         "http": {
-            "threads": 40
+            "threads": 40,
         },
         "endpoint": {
             "wordlist": "large",
             "methods": ["GET", "HEAD", "OPTIONS"],
-            "max_paths": 3000
+            "max_paths": 3000,
         },
         "tech": {
             "graphql": True,
-            "extra_paths": True
-        }
-    }
+            "extra_paths": True,
+        },
+    },
 }
+
+
+def get_profile(profile: str) -> dict:
+    return PROFILES.get(profile, PROFILES["balanced"])
+
+
+def get_http_config(profile: str) -> dict:
+    cfg = get_profile(profile)
+    network_cfg = cfg.get("network", {})
+    http_cfg = cfg.get("http", {})
+    return {
+        "timeout": network_cfg.get("timeout", 6),
+        "follow_redirects": network_cfg.get("follow_redirects", False),
+        "threads": http_cfg.get("threads", 10),
+    }

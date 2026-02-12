@@ -38,7 +38,7 @@ def run(target: str, profile: str = "balanced") -> dict:
     # -------------------------
     # Wildcard detection
     # -------------------------
-    wildcard_info = detect_wildcard(target)
+    wildcard_info = detect_wildcard(target, profile=profile)
     wildcard_ips = wildcard_info.get("ips", [])
     wildcard_enabled = wildcard_info.get("wildcard", False)
 
@@ -57,7 +57,7 @@ def run(target: str, profile: str = "balanced") -> dict:
             if subdomain in seen:
                 continue
 
-            ips = resolve(subdomain)
+            ips = resolve(subdomain, profile=profile)
             if not ips:
                 continue
 
@@ -87,7 +87,7 @@ def run(target: str, profile: str = "balanced") -> dict:
         if subdomain in seen:
             continue
 
-        ips = resolve(subdomain)
+        ips = resolve(subdomain, profile=profile)
         if not ips:
             continue
 

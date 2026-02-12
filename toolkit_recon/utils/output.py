@@ -21,7 +21,7 @@ def save_recon(target: str, module_name: str, module_data: dict):
 
     recon_path = os.path.join(base_dir, "recon.json")
 
-    # Si no existe, crear estructura base
+    # Create base structure when file does not exist.
     if not os.path.exists(recon_path):
         recon_data = {
             "target": target,
@@ -29,9 +29,17 @@ def save_recon(target: str, module_name: str, module_data: dict):
             "modules": {}
         }
     else:
-        with open(recon_path, "r", encoding="utf-8") as f:
-            recon_data = json.load(f)
+        try:
+            with open(recon_path, "r", encoding="utf-8") as f:
+                recon_data = json.load(f)
+        except Exception:
+            recon_data = {
+                "target": target,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "modules": {}
+            }
 
+    recon_data["timestamp"] = datetime.utcnow().isoformat() + "Z"
     recon_data["modules"][module_name] = module_data
 
     with open(recon_path, "w", encoding="utf-8") as f:

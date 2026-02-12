@@ -2,7 +2,7 @@ import socket
 import random
 import string
 from functools import lru_cache
-from toolkit_recon.config.profiles import PROFILES
+from toolkit_recon.config.profiles import get_http_config
 
 
 # -------------------------
@@ -21,8 +21,8 @@ def resolve(domain: str, profile: str = "balanced"):
     Resolve domain to IPs.
     Uses cache to avoid repeated queries.
     """
-    cfg = PROFILES.get(profile, PROFILES["balanced"])
-    timeout = cfg["http"].get("timeout", 6)
+    http_cfg = get_http_config(profile)
+    timeout = http_cfg.get("timeout", 6)
 
     # socket timeout (stealth / network)
     socket.setdefaulttimeout(timeout)
@@ -38,8 +38,8 @@ def detect_wildcard(target: str, profile: str = "balanced") -> dict:
     """
     Detects wildcard DNS by resolving random subdomains.
     """
-    cfg = PROFILES.get(profile, PROFILES["balanced"])
-    timeout = cfg["http"].get("timeout", 6)
+    http_cfg = get_http_config(profile)
+    timeout = http_cfg.get("timeout", 6)
 
     socket.setdefaulttimeout(timeout)
 

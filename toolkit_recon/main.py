@@ -2,9 +2,7 @@
 import argparse
 import sys
 
-# =========================
-# COLORS
-# =========================
+
 class C:
     RED = "\033[91m"
     GREEN = "\033[92m"
@@ -13,24 +11,11 @@ class C:
     RESET = "\033[0m"
 
 
-# =========================
-# BANNER
-# =========================
 def banner():
-    print(C.BLUE + r"""
-████████╗ ██████╗  ██████╗ ██╗     ██╗  ██╗████████╗
-╚══██╔══╝██╔═══██╗██╔═══██╗██║     ██║ ██╔╝╚══██╔══╝
-   ██║   ██║   ██║██║   ██║██║     █████╔╝    ██║
-   ██║   ██║   ██║██║   ██║██║     ██╔═██╗    ██║
-   ██║   ╚██████╔╝╚██████╔╝███████╗██║  ██╗   ██║
-   ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝
-    """ + C.RESET)
-    print("toolkit-recon | by SebassGhost\n")
+    print(C.BLUE + "Toolkit-Recon" + C.RESET)
+    print("Modular reconnaissance toolkit\n")
 
 
-# =========================
-# ARGPARSE
-# =========================
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Recon framework for bug bounty and pentesting"
@@ -45,28 +30,21 @@ def parse_args():
 
     subparsers = parser.add_subparsers(dest="command")
 
-    # subdomain
     sub = subparsers.add_parser("subdomain", help="Subdomain enumeration")
     sub.add_argument("target", help="Target domain")
 
-    # endpoints
     ep = subparsers.add_parser("endpoints", help="Endpoint discovery")
     ep.add_argument("target", help="Target domain or subdomain")
 
-    # tech fingerprint
     tech = subparsers.add_parser("tech", help="Technology fingerprinting")
     tech.add_argument("target", help="Target domain or subdomain")
 
-    # recon all
     recon = subparsers.add_parser("recon-all", help="Full reconnaissance")
     recon.add_argument("target", help="Target domain")
 
     return parser.parse_args()
 
 
-# =========================
-# COMMAND HANDLERS
-# =========================
 def cmd_subdomain(args):
     from toolkit_recon.recon.subdomain_enum.sub_enum import run
     from toolkit_recon.utils.output import save_output, save_recon
@@ -76,7 +54,7 @@ def cmd_subdomain(args):
     data = run(args.target, profile=args.profile)
 
     results = data.get("results", [])
-    print(C.GREEN + f"[✔] {len(results)} subdomains found\n" + C.RESET)
+    print(C.GREEN + f"[+] {len(results)} subdomains found\n" + C.RESET)
 
     for r in results:
         print(
@@ -102,15 +80,11 @@ def cmd_endpoints(args):
         return
 
     interesting = [e for e in endpoints if e.get("interesting")]
-
-    print(C.GREEN + f"[✔] {len(interesting)} interesting endpoints found\n" + C.RESET)
+    print(C.GREEN + f"[+] {len(interesting)} interesting endpoints found\n" + C.RESET)
 
     for e in interesting:
-        print(
-            f" - {e.get('path'):25} "
-            f"[{e.get('status')}] "
-            f"{','.join(e.get('methods', []))}"
-        )
+        methods = ",".join(e.get("methods", []))
+        print(f" - {e.get('path'):25} [{e.get('status')}] {methods}")
 
     save_output(args.target, "endpoints", endpoints)
     save_recon(args.target, "endpoint_discovery", endpoints)
@@ -122,10 +96,10 @@ def cmd_tech(args):
 
     print(C.BLUE + "\n--- Tech Fingerprinting ---" + C.RESET)
 
-    data = run(args.target)
+    data = run(args.target, profile=args.profile)
 
     techs = data.get("technologies", {})
-    print(C.GREEN + "[✔] Technologies detected:\n" + C.RESET)
+    print(C.GREEN + "[+] Technologies detected:\n" + C.RESET)
 
     for k, v in techs.items():
         print(f" - {k}: {v}")
@@ -135,42 +109,31 @@ def cmd_tech(args):
 
 
 def cmd_recon_all(args):
-    from toolkit_recon.recon.subdomain_enum.sub_enum import run as sub_run
-    from toolkit_recon.recon.endpoint_discovery.endpoints import run as ep_run
-    from toolkit_recon.recon.tech_fingerprint.fingerprint import run as tech_run
-    from toolkit_recon.utils.output import save_recon
+    from toolkit_recon.recon.recon_all import run
 
     print(C.BLUE + "\n--- Recon All ---" + C.RESET)
+    data = run(args.target, profile=args.profile)
 
-    # Subdomains
-    sub_data = sub_run(args.target, profile=args.profile)
-    save_recon(args.target, "subdomain_enum", sub_data)
+    sub_count = (
+        data.get("modules", {})
+        .get("subdomain_enum", {})
+        .get("count", 0)
+    )
+    endpoint_targets = len(
+        data.get("modules", {})
+        .get("endpoint_discovery", {})
+    )
+    tech_targets = len(
+        data.get("modules", {})
+        .get("tech_fingerprint", {})
+    )
 
-    results = sub_data.get("results", [])
-
-    # Endpoints
-    all_endpoints = {}
-    for r in results:
-        sub = r.get("subdomain")
-        if not sub:
-            continue
-
-        print(C.BLUE + f"[*] Scanning {sub}" + C.RESET)
-        eps = ep_run(sub, profile=args.profile)
-        all_endpoints[sub] = eps or []
-
-    save_recon(args.target, "endpoint_discovery", all_endpoints)
-
-    # Tech fingerprint
-    tech_data = tech_run(args.target)
-    save_recon(args.target, "tech_fingerprint", tech_data)
-
-    print(C.GREEN + "\n[✓] Recon All completed" + C.RESET)
+    print(C.GREEN + "\n[+] Recon All completed" + C.RESET)
+    print(f"    subdomains: {sub_count}")
+    print(f"    endpoint scans: {endpoint_targets}")
+    print(f"    tech fingerprints: {tech_targets}")
 
 
-# =========================
-# MAIN
-# =========================
 def main():
     banner()
     args = parse_args()

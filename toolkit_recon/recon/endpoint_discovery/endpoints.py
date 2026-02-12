@@ -1,9 +1,11 @@
 import os
+import random
+import time
 import requests
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from toolkit_recon.config.profiles import PROFILES
+from toolkit_recon.config.profiles import get_profile, get_http_config
 
 
 # -------------------------
@@ -21,6 +23,12 @@ WORDLISTS = {
     "large": "large_paths.txt",
 }
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
+]
+
 
 # -------------------------
 # Utils
@@ -31,6 +39,8 @@ def load_wordlist(name: str):
         return []
 
     path = os.path.join(BASE_DIR, filename)
+    if not os.path.exists(path):
+        path = os.path.join(BASE_DIR, WORDLISTS["medium"])
     if not os.path.exists(path):
         return []
 
@@ -60,12 +70,28 @@ def is_interesting(path: str, status: int, length: int) -> bool:
 
 
 # -------------------------
+def build_headers(stealth_cfg: dict) -> dict:
+    headers = {}
+    if stealth_cfg.get("random_user_agent", False):
+        headers["User-Agent"] = random.choice(USER_AGENTS)
+    else:
+        headers["User-Agent"] = "toolkit-recon/1.0"
+    return headers
+
+
+# -------------------------
 # HTTP probe
 # -------------------------
-def probe(url: str, session: requests.Session, cfg: dict):
+def probe(url: str, path: str, cfg: dict, stealth_cfg: dict):
+    if stealth_cfg.get("delay", 0) > 0:
+        time.sleep(stealth_cfg["delay"])
+
+    headers = build_headers(stealth_cfg)
+
     try:
-        r = session.get(
+        r = requests.get(
             url,
+            headers=headers,
             timeout=cfg["timeout"],
             allow_redirects=cfg["follow_redirects"]
         )
@@ -73,7 +99,8 @@ def probe(url: str, session: requests.Session, cfg: dict):
         return None
 
     entry = {
-        "path": url,
+        "path": path,
+        "url": url,
         "status": r.status_code,
         "length": len(r.content),
         "content_type": r.headers.get("Content-Type", ""),
@@ -84,7 +111,12 @@ def probe(url: str, session: requests.Session, cfg: dict):
 
     if "HEAD" in cfg["methods"]:
         try:
-            h = session.head(url, timeout=cfg["timeout"], allow_redirects=False)
+            h = requests.head(
+                url,
+                headers=headers,
+                timeout=cfg["timeout"],
+                allow_redirects=False
+            )
             if h.status_code < 500:
                 entry["methods"].append("HEAD")
         except Exception:
@@ -92,7 +124,7 @@ def probe(url: str, session: requests.Session, cfg: dict):
 
     if "OPTIONS" in cfg["methods"] and r.status_code in (200, 401, 403):
         try:
-            o = session.options(url, timeout=cfg["timeout"])
+            o = requests.options(url, headers=headers, timeout=cfg["timeout"])
             allow = o.headers.get("Allow")
             if allow:
                 entry["methods"] = sorted(set(
@@ -102,7 +134,7 @@ def probe(url: str, session: requests.Session, cfg: dict):
             pass
 
     entry["interesting"] = is_interesting(
-        url,
+        path,
         entry["status"],
         entry["length"]
     )
@@ -118,9 +150,10 @@ def run(target: str, profile: str = "balanced"):
     Endpoint discovery module.
     """
 
-    cfg = PROFILES.get(profile, PROFILES["balanced"])
-    http_cfg = cfg.get("http", {})
+    cfg = get_profile(profile)
+    http_cfg = get_http_config(profile)
     endpoint_cfg = cfg.get("endpoint", {})
+    stealth_cfg = cfg.get("stealth", {})
 
     threads = http_cfg.get("threads", 10)
     timeout = http_cfg.get("timeout", 6)
@@ -141,11 +174,6 @@ def run(target: str, profile: str = "balanced"):
 
     results = []
 
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": "toolkit-recon/1.0"
-    })
-
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = []
 
@@ -155,12 +183,13 @@ def run(target: str, profile: str = "balanced"):
                 executor.submit(
                     probe,
                     url,
-                    session,
+                    path,
                     {
                         "timeout": timeout,
                         "follow_redirects": follow_redirects,
                         "methods": methods,
-                    }
+                    },
+                    stealth_cfg,
                 )
             )
 

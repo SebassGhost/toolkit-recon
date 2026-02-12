@@ -1,16 +1,17 @@
-import os
-import json
+from datetime import datetime
 
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_enum_run
 from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 from toolkit_recon.recon.tech_fingerprint.fingerprint import run as tech_fingerprint_run
+from toolkit_recon.utils.output import save_output, save_recon
 
 
 def run(target: str, profile: str = "balanced") -> dict:
     results = {
         "target": target,
         "profile": profile,
-        "modules": {}
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "modules": {},
     }
 
     # =========================
@@ -20,6 +21,8 @@ def run(target: str, profile: str = "balanced") -> dict:
     try:
         sub_data = subdomain_enum_run(target, profile=profile)
         results["modules"]["subdomain_enum"] = sub_data
+        save_output(target, "subdomains", sub_data)
+        save_recon(target, "subdomain_enum", sub_data)
     except Exception as e:
         results["modules"]["subdomain_enum"] = {"error": str(e)}
 
@@ -49,6 +52,8 @@ def run(target: str, profile: str = "balanced") -> dict:
             endpoint_data[sub] = {"error": str(e)}
 
     results["modules"]["endpoint_discovery"] = endpoint_data
+    save_output(target, "endpoints", endpoint_data)
+    save_recon(target, "endpoint_discovery", endpoint_data)
 
     # =========================
     # Tech Fingerprint
@@ -66,17 +71,7 @@ def run(target: str, profile: str = "balanced") -> dict:
             tech_data[sub] = {"error": str(e)}
 
     results["modules"]["tech_fingerprint"] = tech_data
-
-    # =========================
-    # Save output
-    # =========================
-    output_dir = os.path.join("output", target)
-    os.makedirs(output_dir, exist_ok=True)
-
-    output_file = os.path.join(output_dir, "recon.json")
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=4)
-
-    print(f"[+] Results saved to {output_file}")
+    save_output(target, "tech_fingerprint", tech_data)
+    save_recon(target, "tech_fingerprint", tech_data)
 
     return results

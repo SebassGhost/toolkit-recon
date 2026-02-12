@@ -1,6 +1,6 @@
 import requests
 
-from toolkit_recon.config.profiles import PROFILES
+from toolkit_recon.config.profiles import get_profile, get_http_config
 
 
 # -------------------------
@@ -21,8 +21,10 @@ def run(target: str, profile: str = "balanced") -> dict:
     Lightweight, profile-aware and stealth-conscious.
     """
 
-    cfg = PROFILES.get(profile, PROFILES["balanced"])
-    http_cfg = cfg["http"]
+    cfg = get_profile(profile)
+    http_cfg = get_http_config(profile)
+    stealth_cfg = cfg.get("stealth", {})
+    tech_cfg = cfg.get("tech", {})
 
     base_url = normalize_url(target)
 
@@ -41,9 +43,11 @@ def run(target: str, profile: str = "balanced") -> dict:
     }
 
     session = requests.Session()
-    session.headers.update({
-        "User-Agent": "toolkit-recon/1.0"
-    })
+    session.headers.update(
+        {"User-Agent": "toolkit-recon/1.0"}
+        if not stealth_cfg.get("random_user_agent", False)
+        else {"User-Agent": "Mozilla/5.0 toolkit-recon"}
+    )
 
     # -------------------------
     # Base request
@@ -107,12 +111,13 @@ def run(target: str, profile: str = "balanced") -> dict:
     # GraphQL probe (profile aware)
     # -------------------------
     # Only in balanced / aggressive
-    if profile != "passive":
+    if tech_cfg.get("graphql", profile != "passive"):
         try:
             g = session.post(
                 f"{base_url}/graphql",
                 json={"query": "{__typename}"},
-                timeout=http_cfg["timeout"]
+                timeout=http_cfg["timeout"],
+                allow_redirects=http_cfg["follow_redirects"],
             )
             if g.status_code in (200, 400):
                 data["technologies"]["graphql"] = True

@@ -13,3 +13,6 @@ venv/
 # Sistema
 .DS_Store
 
+# Recon outputs
+output/
+

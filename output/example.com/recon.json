@@ -5,27 +5,45 @@
         "subdomain_enum": {
             "module": "subdomain_enum",
             "target": "example.com",
+            "profile": "aggressive",
             "count": 3,
             "wildcard": false,
+            "wildcard_ips": [],
             "results": [
                 {
                     "subdomain": "www.example.com",
-                    "ip": "104.18.26.120",
-                    "source": "brute"
-                },
-                {
-                    "subdomain": "example.com",
                     "ip": "104.18.27.120",
-                    "source": "passive"
+                    "source": "bruteforce"
                 },
                 {
                     "subdomain": "m.testexample.com",
                     "ip": "76.223.54.146",
                     "source": "passive"
+                },
+                {
+                    "subdomain": "example.com",
+                    "ip": "104.18.26.120",
+                    "source": "passive"
                 }
             ]
         },
-        "endpoint_discovery": {},
-        "tech_fingerprint": []
+        "endpoint_discovery": {
+            "www.example.com": [],
+            "m.testexample.com": [],
+            "example.com": []
+        },
+        "tech_fingerprint": {
+            "module": "tech_fingerprint",
+            "target": "example.com",
+            "technologies": {
+                "server": null,
+                "cdn": null,
+                "framework": null,
+                "language": null,
+                "cookies": [],
+                "graphql": false
+            },
+            "headers": {}
+        }
     }
 }
