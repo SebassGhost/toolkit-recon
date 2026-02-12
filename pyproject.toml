@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toolkit-recon"
+version = "1.0.0"
+description = "Toolkit modular de reconocimiento y OSINT para pentesting educativo"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "SebassGhost" }
+]
+dependencies = [
+  "requests",
+  "dnspython",
+  "httpx",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "jsonschema",
+  "ruff",
+]
+
+[project.scripts]
+toolkit-recon = "toolkit_recon.main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["toolkit_recon*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

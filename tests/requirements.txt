@@ -2,3 +2,5 @@ requests
 dnspython
 httpx
 pytest
+jsonschema
+ruff

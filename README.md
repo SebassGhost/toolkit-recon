@@ -96,6 +96,10 @@ pip install -r tests/requirements.txt
 python -m pytest -q
 ```
 
+## Contribucion
+
+Revisa `CONTRIBUTING.md` para flujo de trabajo, estandares de modulos y definicion de "done".
+
 ## Higiene Del Repositorio
 
 Los resultados de escaneo en `output/` estan ignorados por Git (`.gitignore`) y no deben subirse.

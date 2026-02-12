@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://toolkit-recon.local/schemas/recon.schema.json",
+  "title": "Toolkit Recon Output",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "target",
+    "profile",
+    "timestamp",
+    "modules",
+    "metrics"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "target": { "type": "string", "minLength": 1 },
+    "profile": {
+      "type": "string",
+      "enum": ["passive", "balanced", "aggressive"]
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$"
+    },
+    "modules": {
+      "type": "object",
+      "required": [
+        "subdomain_enum",
+        "endpoint_discovery",
+        "tech_fingerprint"
+      ],
+      "properties": {
+        "subdomain_enum": { "type": "object" },
+        "endpoint_discovery": { "type": "object" },
+        "tech_fingerprint": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "subdomain_enum",
+        "endpoint_discovery",
+        "tech_fingerprint"
+      ],
+      "properties": {
+        "subdomain_enum": { "type": "object" },
+        "endpoint_discovery": { "type": "object" },
+        "tech_fingerprint": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
