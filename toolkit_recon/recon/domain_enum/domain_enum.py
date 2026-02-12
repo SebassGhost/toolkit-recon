@@ -1,5 +1,7 @@
 import socket
-from toolkit_recon.config.profiles import PROFILES
+import time
+from toolkit_recon import SCHEMA_VERSION
+from toolkit_recon.config.profiles import get_profile
 
 
 # =========================
@@ -36,7 +38,8 @@ def resolve_domain(target: str) -> dict:
 # MAIN RUNNER
 # =========================
 def run(target: str, profile: str = "balanced") -> dict:
-    cfg = PROFILES.get(profile)
+    start = time.perf_counter()
+    cfg = get_profile(profile)
     if not cfg:
         raise ValueError(f"Invalid profile: {profile}")
 
@@ -62,9 +65,14 @@ def run(target: str, profile: str = "balanced") -> dict:
         result["errors"].append(f"Unhandled error: {str(e)}")
 
     return {
+        "schema_version": SCHEMA_VERSION,
         "module": "domain_enum",
         "target": target,
         "profile": profile,
         "count": len(result["records"]["A"]) + len(result["records"]["AAAA"]),
-        "results": result
+        "results": result,
+        "metrics": {
+            "errors": len(result["errors"]),
+            "duration_seconds": round(time.perf_counter() - start, 4),
+        },
     }

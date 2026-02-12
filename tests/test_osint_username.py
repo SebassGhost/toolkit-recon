@@ -19,6 +19,7 @@ def test_osint_username_parses_found_profiles(mock_subprocess_run, mock_build_cm
     assert data["schema_version"] == SCHEMA_VERSION
     assert data["module"] == "osint_username"
     assert data["metrics"]["found"] == 2
+    assert data["metrics"]["sites_checked_known"] is False
     assert len(data["results"]) == 2
 
 

@@ -1,11 +1,25 @@
 import json
 import os
+import re
 from datetime import datetime
 from toolkit_recon import SCHEMA_VERSION
 
 
+def _sanitize_target(target: str) -> str:
+    cleaned = (target or "").strip()
+    cleaned = cleaned.replace("\\", "_").replace("/", "_")
+    cleaned = cleaned.replace("..", "_")
+    cleaned = re.sub(r"[^A-Za-z0-9._()-]", "_", cleaned)
+    cleaned = cleaned.strip("._")
+    return cleaned or "unknown_target"
+
+
+def _target_output_dir(target: str) -> str:
+    return os.path.join("output", _sanitize_target(target))
+
+
 def save_output(target: str, name: str, data: dict):
-    base_dir = os.path.join("output", target)
+    base_dir = _target_output_dir(target)
     os.makedirs(base_dir, exist_ok=True)
 
     path = os.path.join(base_dir, f"{name}.json")
@@ -17,7 +31,7 @@ def save_output(target: str, name: str, data: dict):
 
 
 def save_recon(target: str, module_name: str, module_data: dict):
-    base_dir = os.path.join("output", target)
+    base_dir = _target_output_dir(target)
     os.makedirs(base_dir, exist_ok=True)
 
     recon_path = os.path.join(base_dir, "recon.json")
@@ -53,7 +67,7 @@ def save_recon(target: str, module_name: str, module_data: dict):
 
 
 def save_full_recon(target: str, recon_data: dict):
-    base_dir = os.path.join("output", target)
+    base_dir = _target_output_dir(target)
     os.makedirs(base_dir, exist_ok=True)
 
     recon_path = os.path.join(base_dir, "recon.json")

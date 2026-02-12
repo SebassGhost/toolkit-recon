@@ -1,6 +1,7 @@
 import asyncio
 import os
 import random
+import threading
 import time
 from urllib.parse import urljoin
 
@@ -317,4 +318,25 @@ async def _run_async(target: str, profile: str = "balanced"):
 
 
 def run(target: str, profile: str = "balanced"):
-    return asyncio.run(_run_async(target, profile=profile))
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_run_async(target, profile=profile))
+
+    result: dict = {}
+    error: Exception | None = None
+
+    def _runner():
+        nonlocal result, error
+        try:
+            result = asyncio.run(_run_async(target, profile=profile))
+        except Exception as exc:
+            error = exc
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    thread.join()
+
+    if error is not None:
+        raise error
+    return result

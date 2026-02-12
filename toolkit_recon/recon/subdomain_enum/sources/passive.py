@@ -1,6 +1,19 @@
 import requests
 
 
+def _normalize_domain(name: str) -> str:
+    normalized = (name or "").strip().lower().rstrip(".")
+    if normalized.startswith("*."):
+        normalized = normalized[2:]
+    return normalized
+
+
+def _is_target_subdomain(candidate: str, target: str) -> bool:
+    c = _normalize_domain(candidate)
+    t = _normalize_domain(target)
+    return c == t or c.endswith("." + t)
+
+
 def from_crtsh(target):
     """
     Fetch subdomains from crt.sh
@@ -17,8 +30,8 @@ def from_crtsh(target):
         for entry in data:
             name = entry.get("name_value", "")
             for sub in name.split("\n"):
-                if sub.endswith(target):
-                    subdomains.add(sub.strip())
+                if _is_target_subdomain(sub, target):
+                    subdomains.add(_normalize_domain(sub))
     except Exception:
         pass
 
@@ -37,7 +50,8 @@ def from_threatcrowd(target):
         data = r.json()
 
         for sub in data.get("subdomains", []):
-            subdomains.add(sub.strip())
+            if _is_target_subdomain(sub, target):
+                subdomains.add(_normalize_domain(sub))
     except Exception:
         pass
 

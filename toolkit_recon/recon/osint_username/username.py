@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 from toolkit_recon import SCHEMA_VERSION
 from toolkit_recon.config.profiles import get_http_config
 
+SECOND_LEVEL_SUFFIXES = {"co", "com", "org", "net", "gov", "edu"}
+COUNTRY_TLDS = {"uk", "au", "jp", "za", "br", "mx", "ar", "cl"}
 
 URL_PATTERN = re.compile(r"https?://[^\s]+")
 
@@ -26,8 +28,10 @@ def _build_sherlock_command(username: str) -> list[str] | None:
 
 def _site_from_url(url: str) -> str:
     hostname = urlparse(url).hostname or "unknown"
-    parts = hostname.split(".")
+    parts = hostname.lower().split(".")
     if len(parts) >= 2:
+        if len(parts) >= 3 and parts[-1] in COUNTRY_TLDS and parts[-2] in SECOND_LEVEL_SUFFIXES:
+            return parts[-3]
         return parts[-2]
     return hostname
 
@@ -60,6 +64,7 @@ def run(target: str, profile: str = "balanced") -> dict:
             "executed": False,
             "return_code": None,
             "sites_checked": 0,
+            "sites_checked_known": False,
             "found": 0,
             "errors": 0,
             "duration_seconds": 0.0,
@@ -87,7 +92,9 @@ def run(target: str, profile: str = "balanced") -> dict:
         data["metrics"]["return_code"] = proc.returncode
         data["results"] = _extract_results(proc.stdout)
         data["metrics"]["found"] = len(data["results"])
-        data["metrics"]["sites_checked"] = len(data["results"])
+        # Sherlock CLI does not expose a reliable total checked-sites count.
+        data["metrics"]["sites_checked"] = 0
+        data["metrics"]["sites_checked_known"] = False
         if proc.returncode not in (0, 1):
             data["error"] = (proc.stderr or "Error ejecutando Sherlock").strip()
             data["metrics"]["errors"] = 1

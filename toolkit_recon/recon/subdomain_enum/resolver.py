@@ -1,7 +1,7 @@
-import socket
 import random
 import string
 from functools import lru_cache
+import dns.resolver
 from toolkit_recon.config.profiles import get_http_config
 
 
@@ -9,9 +9,13 @@ from toolkit_recon.config.profiles import get_http_config
 # DNS Resolve (cached)
 # -------------------------
 @lru_cache(maxsize=4096)
-def _resolve_cached(domain: str):
+def _resolve_cached(domain: str, timeout: float):
+    resolver = dns.resolver.Resolver(configure=True)
+    resolver.lifetime = timeout
+    resolver.timeout = timeout
     try:
-        return socket.gethostbyname_ex(domain)[2]
+        answers = resolver.resolve(domain, "A")
+        return sorted({r.to_text() for r in answers})
     except Exception:
         return []
 
@@ -24,10 +28,7 @@ def resolve(domain: str, profile: str = "balanced"):
     http_cfg = get_http_config(profile)
     timeout = http_cfg.get("timeout", 6)
 
-    # socket timeout (stealth / network)
-    socket.setdefaulttimeout(timeout)
-
-    ips = _resolve_cached(domain)
+    ips = _resolve_cached(domain, float(timeout))
     return ips if ips else None
 
 
@@ -38,11 +39,6 @@ def detect_wildcard(target: str, profile: str = "balanced") -> dict:
     """
     Detects wildcard DNS by resolving random subdomains.
     """
-    http_cfg = get_http_config(profile)
-    timeout = http_cfg.get("timeout", 6)
-
-    socket.setdefaulttimeout(timeout)
-
     random_labels = [
         "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
         for _ in range(2)
