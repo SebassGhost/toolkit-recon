@@ -1,25 +1,18 @@
 {
+    "schema_version": "1.0.0",
     "module": "subdomain_enum",
     "target": "example.com",
-    "profile": "aggressive",
-    "count": 3,
+    "profile": "balanced",
+    "count": 0,
     "wildcard": false,
     "wildcard_ips": [],
-    "results": [
-        {
-            "subdomain": "www.example.com",
-            "ip": "104.18.26.120",
-            "source": "bruteforce"
-        },
-        {
-            "subdomain": "m.testexample.com",
-            "ip": "76.223.54.146",
-            "source": "passive"
-        },
-        {
-            "subdomain": "example.com",
-            "ip": "104.18.26.120",
-            "source": "passive"
-        }
-    ]
+    "results": [],
+    "metrics": {
+        "bruteforce_candidates": 8,
+        "passive_candidates": 6,
+        "attempted_resolutions": 14,
+        "resolved": 0,
+        "wildcard_filtered": 0,
+        "duration_seconds": 94.6213
+    }
 }
