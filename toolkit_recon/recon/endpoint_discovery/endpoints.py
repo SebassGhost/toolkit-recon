@@ -1,9 +1,12 @@
 import os
 import random
 import time
+import threading
 import requests
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from toolkit_recon.config.profiles import get_profile, get_http_config
 
@@ -28,6 +31,8 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/121.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
 ]
+
+RETRY_STATUS = (429, 500, 502, 503, 504)
 
 
 # -------------------------
@@ -79,17 +84,64 @@ def build_headers(stealth_cfg: dict) -> dict:
     return headers
 
 
+class RateLimiter:
+    def __init__(self, max_rps: int):
+        self._interval = 1.0 / max_rps if max_rps and max_rps > 0 else 0.0
+        self._next_time = 0.0
+        self._lock = threading.Lock()
+
+    def wait(self):
+        if self._interval <= 0:
+            return
+
+        with self._lock:
+            now = time.monotonic()
+            if now < self._next_time:
+                time.sleep(self._next_time - now)
+            self._next_time = time.monotonic() + self._interval
+
+
+def build_session(http_cfg: dict) -> requests.Session:
+    retries = Retry(
+        total=http_cfg.get("retries", 2),
+        connect=http_cfg.get("retries", 2),
+        read=http_cfg.get("retries", 2),
+        status=http_cfg.get("retries", 2),
+        backoff_factor=http_cfg.get("backoff_factor", 0.2),
+        status_forcelist=RETRY_STATUS,
+        allowed_methods=frozenset({"GET", "HEAD", "OPTIONS"}),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retries, pool_connections=100, pool_maxsize=100)
+    session = requests.Session()
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
 # -------------------------
 # HTTP probe
 # -------------------------
-def probe(url: str, path: str, cfg: dict, stealth_cfg: dict):
+def probe(
+    url: str,
+    path: str,
+    cfg: dict,
+    stealth_cfg: dict,
+    thread_ctx: threading.local,
+    limiter: RateLimiter,
+):
+    if not hasattr(thread_ctx, "session"):
+        thread_ctx.session = build_session(cfg)
+    session = thread_ctx.session
+
+    limiter.wait()
     if stealth_cfg.get("delay", 0) > 0:
         time.sleep(stealth_cfg["delay"])
 
     headers = build_headers(stealth_cfg)
 
     try:
-        r = requests.get(
+        r = session.get(
             url,
             headers=headers,
             timeout=cfg["timeout"],
@@ -111,7 +163,7 @@ def probe(url: str, path: str, cfg: dict, stealth_cfg: dict):
 
     if "HEAD" in cfg["methods"]:
         try:
-            h = requests.head(
+            h = session.head(
                 url,
                 headers=headers,
                 timeout=cfg["timeout"],
@@ -124,7 +176,7 @@ def probe(url: str, path: str, cfg: dict, stealth_cfg: dict):
 
     if "OPTIONS" in cfg["methods"] and r.status_code in (200, 401, 403):
         try:
-            o = requests.options(url, headers=headers, timeout=cfg["timeout"])
+            o = session.options(url, headers=headers, timeout=cfg["timeout"])
             allow = o.headers.get("Allow")
             if allow:
                 entry["methods"] = sorted(set(
@@ -173,6 +225,8 @@ def run(target: str, profile: str = "balanced"):
     paths = paths[:max_paths]
 
     results = []
+    thread_ctx = threading.local()
+    limiter = RateLimiter(http_cfg.get("max_rps", 0))
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = []
@@ -188,8 +242,12 @@ def run(target: str, profile: str = "balanced"):
                         "timeout": timeout,
                         "follow_redirects": follow_redirects,
                         "methods": methods,
+                        "retries": http_cfg.get("retries", 2),
+                        "backoff_factor": http_cfg.get("backoff_factor", 0.2),
                     },
                     stealth_cfg,
+                    thread_ctx,
+                    limiter,
                 )
             )
 

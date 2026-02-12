@@ -3,6 +3,9 @@ PROFILES = {
         "network": {
             "timeout": 6,
             "follow_redirects": False,
+            "retries": 2,
+            "backoff_factor": 0.3,
+            "max_rps": 3,
         },
         "stealth": {
             "random_user_agent": True,
@@ -30,6 +33,9 @@ PROFILES = {
         "network": {
             "timeout": 6,
             "follow_redirects": False,
+            "retries": 3,
+            "backoff_factor": 0.25,
+            "max_rps": 10,
         },
         "stealth": {
             "random_user_agent": True,
@@ -57,6 +63,9 @@ PROFILES = {
         "network": {
             "timeout": 4,
             "follow_redirects": True,
+            "retries": 2,
+            "backoff_factor": 0.2,
+            "max_rps": 30,
         },
         "stealth": {
             "random_user_agent": False,
@@ -94,5 +103,8 @@ def get_http_config(profile: str) -> dict:
     return {
         "timeout": network_cfg.get("timeout", 6),
         "follow_redirects": network_cfg.get("follow_redirects", False),
+        "retries": network_cfg.get("retries", 2),
+        "backoff_factor": network_cfg.get("backoff_factor", 0.2),
+        "max_rps": network_cfg.get("max_rps", 10),
         "threads": http_cfg.get("threads", 10),
     }
