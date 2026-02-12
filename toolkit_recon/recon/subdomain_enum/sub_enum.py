@@ -1,5 +1,6 @@
 import os
-from toolkit_recon.config.profiles import PROFILES
+import time
+from toolkit_recon.config.profiles import get_profile
 from .resolver import resolve, detect_wildcard
 from .sources.passive import run as passive_enum
 
@@ -26,7 +27,8 @@ def load_wordlist():
 # Main runner
 # -------------------------
 def run(target: str, profile: str = "balanced") -> dict:
-    cfg = PROFILES.get(profile, PROFILES["balanced"])
+    start = time.perf_counter()
+    cfg = get_profile(profile)
     dns_cfg = cfg["dns"]
 
     bruteforce_enabled = dns_cfg.get("bruteforce", True)
@@ -34,6 +36,14 @@ def run(target: str, profile: str = "balanced") -> dict:
 
     results = []
     seen = set()
+    metrics = {
+        "bruteforce_candidates": 0,
+        "passive_candidates": 0,
+        "attempted_resolutions": 0,
+        "resolved": 0,
+        "wildcard_filtered": 0,
+        "duration_seconds": 0.0,
+    }
 
     # -------------------------
     # Wildcard detection
@@ -47,6 +57,7 @@ def run(target: str, profile: str = "balanced") -> dict:
     # -------------------------
     if bruteforce_enabled:
         wordlist = load_wordlist()
+        metrics["bruteforce_candidates"] = len(wordlist)
 
         for word in wordlist:
             if len(results) >= max_subdomains:
@@ -57,15 +68,18 @@ def run(target: str, profile: str = "balanced") -> dict:
             if subdomain in seen:
                 continue
 
+            metrics["attempted_resolutions"] += 1
             ips = resolve(subdomain, profile=profile)
             if not ips:
                 continue
 
             # Skip wildcard-only results
             if wildcard_enabled and all(ip in wildcard_ips for ip in ips):
+                metrics["wildcard_filtered"] += 1
                 continue
 
             seen.add(subdomain)
+            metrics["resolved"] += 1
             results.append({
                 "subdomain": subdomain,
                 "ip": ips[0],
@@ -79,6 +93,7 @@ def run(target: str, profile: str = "balanced") -> dict:
         passive_subs = passive_enum(target)
     except Exception:
         passive_subs = []
+    metrics["passive_candidates"] = len(passive_subs)
 
     for subdomain in passive_subs:
         if len(results) >= max_subdomains:
@@ -87,19 +102,24 @@ def run(target: str, profile: str = "balanced") -> dict:
         if subdomain in seen:
             continue
 
+        metrics["attempted_resolutions"] += 1
         ips = resolve(subdomain, profile=profile)
         if not ips:
             continue
 
         if wildcard_enabled and all(ip in wildcard_ips for ip in ips):
+            metrics["wildcard_filtered"] += 1
             continue
 
         seen.add(subdomain)
+        metrics["resolved"] += 1
         results.append({
             "subdomain": subdomain,
             "ip": ips[0],
             "source": "passive"
         })
+
+    metrics["duration_seconds"] = round(time.perf_counter() - start, 4)
 
     return {
         "module": "subdomain_enum",
@@ -108,5 +128,6 @@ def run(target: str, profile: str = "balanced") -> dict:
         "count": len(results),
         "wildcard": wildcard_enabled,
         "wildcard_ips": wildcard_ips,
-        "results": results
+        "results": results,
+        "metrics": metrics,
     }

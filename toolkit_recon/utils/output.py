@@ -46,3 +46,17 @@ def save_recon(target: str, module_name: str, module_data: dict):
         json.dump(recon_data, f, indent=4)
 
     print(f"[+] Updated recon.json ({module_name})")
+
+
+def save_full_recon(target: str, recon_data: dict):
+    base_dir = os.path.join("output", target)
+    os.makedirs(base_dir, exist_ok=True)
+
+    recon_path = os.path.join(base_dir, "recon.json")
+    data = dict(recon_data)
+    data["timestamp"] = datetime.utcnow().isoformat() + "Z"
+
+    with open(recon_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+    print("[+] Saved recon.json")

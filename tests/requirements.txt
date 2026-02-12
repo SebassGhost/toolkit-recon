@@ -1,3 +1,4 @@
 requests
 dnspython
+httpx
 pytest

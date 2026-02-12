@@ -1,21 +1,21 @@
+import asyncio
 import os
 import random
 import time
-import threading
-import requests
 from urllib.parse import urljoin
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
-from toolkit_recon.config.profiles import get_profile, get_http_config
+import httpx
+
+from toolkit_recon.config.profiles import get_http_config, get_profile
 
 
-# -------------------------
-# Constants
-# -------------------------
 INTERESTING_KEYWORDS = [
-    "admin", "api", "login", "dashboard", "upload", "graphql"
+    "admin",
+    "api",
+    "login",
+    "dashboard",
+    "upload",
+    "graphql",
 ]
 
 BASE_DIR = os.path.dirname(__file__)
@@ -32,12 +32,9 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
 ]
 
-RETRY_STATUS = (429, 500, 502, 503, 504)
+RETRY_STATUS = {429, 500, 502, 503, 504}
 
 
-# -------------------------
-# Utils
-# -------------------------
 def load_wordlist(name: str):
     filename = WORDLISTS.get(name)
     if not filename:
@@ -59,8 +56,16 @@ def load_wordlist(name: str):
 
 def should_scan(path: str) -> bool:
     skip_ext = (
-        ".css", ".js", ".png", ".jpg", ".jpeg",
-        ".svg", ".ico", ".woff", ".ttf", ".map"
+        ".css",
+        ".js",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".svg",
+        ".ico",
+        ".woff",
+        ".ttf",
+        ".map",
     )
     return not path.lower().endswith(skip_ext)
 
@@ -70,138 +75,153 @@ def is_interesting(path: str, status: int, length: int) -> bool:
         return False
     if length == 0:
         return False
-
     return any(k in path.lower() for k in INTERESTING_KEYWORDS)
 
 
-# -------------------------
 def build_headers(stealth_cfg: dict) -> dict:
-    headers = {}
     if stealth_cfg.get("random_user_agent", False):
-        headers["User-Agent"] = random.choice(USER_AGENTS)
-    else:
-        headers["User-Agent"] = "toolkit-recon/1.0"
-    return headers
+        return {"User-Agent": random.choice(USER_AGENTS)}
+    return {"User-Agent": "toolkit-recon/1.0"}
 
 
-class RateLimiter:
+class AsyncRateLimiter:
     def __init__(self, max_rps: int):
         self._interval = 1.0 / max_rps if max_rps and max_rps > 0 else 0.0
         self._next_time = 0.0
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
-    def wait(self):
+    async def wait(self):
         if self._interval <= 0:
             return
-
-        with self._lock:
+        async with self._lock:
             now = time.monotonic()
             if now < self._next_time:
-                time.sleep(self._next_time - now)
+                await asyncio.sleep(self._next_time - now)
             self._next_time = time.monotonic() + self._interval
 
 
-def build_session(http_cfg: dict) -> requests.Session:
-    retries = Retry(
-        total=http_cfg.get("retries", 2),
-        connect=http_cfg.get("retries", 2),
-        read=http_cfg.get("retries", 2),
-        status=http_cfg.get("retries", 2),
-        backoff_factor=http_cfg.get("backoff_factor", 0.2),
-        status_forcelist=RETRY_STATUS,
-        allowed_methods=frozenset({"GET", "HEAD", "OPTIONS"}),
-        raise_on_status=False,
-    )
-    adapter = HTTPAdapter(max_retries=retries, pool_connections=100, pool_maxsize=100)
-    session = requests.Session()
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
-
-
-# -------------------------
-# HTTP probe
-# -------------------------
-def probe(
+async def request_with_retry(
+    client: httpx.AsyncClient,
+    method: str,
     url: str,
+    timeout: float,
+    follow_redirects: bool,
+    retries: int,
+    backoff_factor: float,
+    headers: dict,
+):
+    attempts = 0
+    while True:
+        try:
+            response = await client.request(
+                method=method,
+                url=url,
+                headers=headers,
+                timeout=timeout,
+                follow_redirects=follow_redirects,
+            )
+            if response.status_code in RETRY_STATUS and attempts < retries:
+                await asyncio.sleep(backoff_factor * (2 ** attempts))
+                attempts += 1
+                continue
+            return response, attempts
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.ProtocolError):
+            if attempts >= retries:
+                return None, attempts
+            await asyncio.sleep(backoff_factor * (2 ** attempts))
+            attempts += 1
+
+
+async def _scan_path(
+    client: httpx.AsyncClient,
+    base_url: str,
     path: str,
     cfg: dict,
     stealth_cfg: dict,
-    thread_ctx: threading.local,
-    limiter: RateLimiter,
+    limiter: AsyncRateLimiter,
 ):
-    if not hasattr(thread_ctx, "session"):
-        thread_ctx.session = build_session(cfg)
-    session = thread_ctx.session
-
-    limiter.wait()
+    await limiter.wait()
     if stealth_cfg.get("delay", 0) > 0:
-        time.sleep(stealth_cfg["delay"])
+        await asyncio.sleep(stealth_cfg["delay"])
 
     headers = build_headers(stealth_cfg)
+    url = urljoin(base_url, path)
 
-    try:
-        r = session.get(
-            url,
-            headers=headers,
-            timeout=cfg["timeout"],
-            allow_redirects=cfg["follow_redirects"]
-        )
-    except Exception:
-        return None
+    response, retries_used = await request_with_retry(
+        client=client,
+        method="GET",
+        url=url,
+        timeout=cfg["timeout"],
+        follow_redirects=cfg["follow_redirects"],
+        retries=cfg["retries"],
+        backoff_factor=cfg["backoff_factor"],
+        headers=headers,
+    )
+
+    if response is None:
+        return None, {
+            "attempted": 1,
+            "completed": 0,
+            "errors": 1,
+            "retried_requests": retries_used,
+        }
 
     entry = {
         "path": path,
-        "url": url,
-        "status": r.status_code,
-        "length": len(r.content),
-        "content_type": r.headers.get("Content-Type", ""),
-        "redirect": r.headers.get("Location"),
+        "url": str(response.url),
+        "status": response.status_code,
+        "length": len(response.content),
+        "content_type": response.headers.get("Content-Type", ""),
+        "redirect": response.headers.get("Location"),
         "methods": ["GET"],
-        "interesting": False
+        "interesting": False,
     }
 
     if "HEAD" in cfg["methods"]:
-        try:
-            h = session.head(
-                url,
-                headers=headers,
-                timeout=cfg["timeout"],
-                allow_redirects=False
-            )
-            if h.status_code < 500:
-                entry["methods"].append("HEAD")
-        except Exception:
-            pass
+        head_response, head_retries = await request_with_retry(
+            client=client,
+            method="HEAD",
+            url=url,
+            timeout=cfg["timeout"],
+            follow_redirects=False,
+            retries=cfg["retries"],
+            backoff_factor=cfg["backoff_factor"],
+            headers=headers,
+        )
+        retries_used += head_retries
+        if head_response is not None and head_response.status_code < 500:
+            entry["methods"].append("HEAD")
 
-    if "OPTIONS" in cfg["methods"] and r.status_code in (200, 401, 403):
-        try:
-            o = session.options(url, headers=headers, timeout=cfg["timeout"])
-            allow = o.headers.get("Allow")
+    if "OPTIONS" in cfg["methods"] and response.status_code in (200, 401, 403):
+        options_response, options_retries = await request_with_retry(
+            client=client,
+            method="OPTIONS",
+            url=url,
+            timeout=cfg["timeout"],
+            follow_redirects=False,
+            retries=cfg["retries"],
+            backoff_factor=cfg["backoff_factor"],
+            headers=headers,
+        )
+        retries_used += options_retries
+        if options_response is not None:
+            allow = options_response.headers.get("Allow", "")
             if allow:
-                entry["methods"] = sorted(set(
-                    entry["methods"] + [m.strip() for m in allow.split(",")]
-                ))
-        except Exception:
-            pass
+                entry["methods"] = sorted(
+                    set(entry["methods"] + [m.strip() for m in allow.split(",")])
+                )
 
-    entry["interesting"] = is_interesting(
-        path,
-        entry["status"],
-        entry["length"]
-    )
+    entry["interesting"] = is_interesting(path, entry["status"], entry["length"])
 
-    return entry
+    return entry, {
+        "attempted": 1,
+        "completed": 1,
+        "errors": 0,
+        "retried_requests": retries_used,
+    }
 
 
-# -------------------------
-# Runner
-# -------------------------
-def run(target: str, profile: str = "balanced"):
-    """
-    Endpoint discovery module.
-    """
-
+async def _run_async(target: str, profile: str = "balanced"):
     cfg = get_profile(profile)
     http_cfg = get_http_config(profile)
     endpoint_cfg = cfg.get("endpoint", {})
@@ -210,54 +230,89 @@ def run(target: str, profile: str = "balanced"):
     threads = http_cfg.get("threads", 10)
     timeout = http_cfg.get("timeout", 6)
     follow_redirects = http_cfg.get("follow_redirects", False)
+    retries = http_cfg.get("retries", 2)
+    backoff_factor = http_cfg.get("backoff_factor", 0.2)
 
     methods = endpoint_cfg.get("methods", ["GET"])
     wordlist_name = endpoint_cfg.get("wordlist", "medium")
     max_paths = endpoint_cfg.get("max_paths", 500)
 
-    if target.startswith("http"):
-        base_url = target.rstrip("/")
-    else:
-        base_url = f"https://{target}".rstrip("/")
+    base_url = target.rstrip("/") if target.startswith("http") else f"https://{target}"
 
     paths = load_wordlist(wordlist_name)
     paths = [p for p in paths if should_scan(p)]
     paths = paths[:max_paths]
 
-    results = []
-    thread_ctx = threading.local()
-    limiter = RateLimiter(http_cfg.get("max_rps", 0))
+    limiter = AsyncRateLimiter(http_cfg.get("max_rps", 0))
+    semaphore = asyncio.Semaphore(max(1, int(threads)))
 
-    with ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = []
+    limits = httpx.Limits(max_connections=max(20, threads * 2), max_keepalive_connections=max(10, threads))
+    transport = httpx.AsyncHTTPTransport(retries=0)
+    start = time.perf_counter()
 
-        for path in paths:
-            url = urljoin(base_url, path)
-            futures.append(
-                executor.submit(
-                    probe,
-                    url,
-                    path,
-                    {
+    async with httpx.AsyncClient(limits=limits, transport=transport) as client:
+        async def _worker(path: str):
+            async with semaphore:
+                return await _scan_path(
+                    client=client,
+                    base_url=base_url,
+                    path=path,
+                    cfg={
                         "timeout": timeout,
                         "follow_redirects": follow_redirects,
                         "methods": methods,
-                        "retries": http_cfg.get("retries", 2),
-                        "backoff_factor": http_cfg.get("backoff_factor", 0.2),
+                        "retries": retries,
+                        "backoff_factor": backoff_factor,
                     },
-                    stealth_cfg,
-                    thread_ctx,
-                    limiter,
+                    stealth_cfg=stealth_cfg,
+                    limiter=limiter,
                 )
-            )
 
-        for future in as_completed(futures):
-            entry = future.result()
-            if not entry:
-                continue
-            if entry["status"] == 404:
-                continue
+        tasks = [asyncio.create_task(_worker(path)) for path in paths]
+        scanned = await asyncio.gather(*tasks, return_exceptions=True)
 
-            results.append(entry)
+    results = []
+    metrics = {
+        "total_paths": len(paths),
+        "attempted": 0,
+        "completed": 0,
+        "errors": 0,
+        "retried_requests": 0,
+        "duration_seconds": 0.0,
+        "throughput_rps": 0.0,
+    }
 
-    return results
+    for item in scanned:
+        if isinstance(item, Exception):
+            metrics["attempted"] += 1
+            metrics["errors"] += 1
+            continue
+
+        entry, partial = item
+        metrics["attempted"] += partial["attempted"]
+        metrics["completed"] += partial["completed"]
+        metrics["errors"] += partial["errors"]
+        metrics["retried_requests"] += partial["retried_requests"]
+
+        if not entry:
+            continue
+        if entry["status"] == 404:
+            continue
+        results.append(entry)
+
+    duration = time.perf_counter() - start
+    metrics["duration_seconds"] = round(duration, 4)
+    metrics["throughput_rps"] = round(metrics["completed"] / duration, 2) if duration > 0 else 0.0
+
+    return {
+        "module": "endpoint_discovery",
+        "target": target,
+        "profile": profile,
+        "count": len(results),
+        "results": results,
+        "metrics": metrics,
+    }
+
+
+def run(target: str, profile: str = "balanced"):
+    return asyncio.run(_run_async(target, profile=profile))

@@ -73,21 +73,31 @@ def cmd_endpoints(args):
 
     print(C.BLUE + "\n--- Endpoint Discovery ---" + C.RESET)
 
-    endpoints = run(args.target, profile=args.profile)
+    data = run(args.target, profile=args.profile)
+    endpoints = data.get("results", [])
 
     if not endpoints:
         print(C.YELLOW + "[!] No endpoints found" + C.RESET)
-        return
+    else:
+        interesting = [e for e in endpoints if e.get("interesting")]
+        print(C.GREEN + f"[+] {len(interesting)} interesting endpoints found\n" + C.RESET)
 
-    interesting = [e for e in endpoints if e.get("interesting")]
-    print(C.GREEN + f"[+] {len(interesting)} interesting endpoints found\n" + C.RESET)
+        for e in interesting:
+            methods = ",".join(e.get("methods", []))
+            print(f" - {e.get('path'):25} [{e.get('status')}] {methods}")
 
-    for e in interesting:
-        methods = ",".join(e.get("methods", []))
-        print(f" - {e.get('path'):25} [{e.get('status')}] {methods}")
+    metrics = data.get("metrics", {})
+    if metrics:
+        print(
+            f"[i] scanned={metrics.get('total_paths', 0)} "
+            f"ok={metrics.get('completed', 0)} "
+            f"errors={metrics.get('errors', 0)} "
+            f"retries={metrics.get('retried_requests', 0)} "
+            f"time={metrics.get('duration_seconds', 0)}s"
+        )
 
-    save_output(args.target, "endpoints", endpoints)
-    save_recon(args.target, "endpoint_discovery", endpoints)
+    save_output(args.target, "endpoints", data)
+    save_recon(args.target, "endpoint_discovery", data)
 
 
 def cmd_tech(args):

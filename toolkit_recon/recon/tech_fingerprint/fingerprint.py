@@ -1,4 +1,5 @@
 import requests
+import time
 
 from toolkit_recon.config.profiles import get_profile, get_http_config
 
@@ -21,6 +22,7 @@ def run(target: str, profile: str = "balanced") -> dict:
     Lightweight, profile-aware and stealth-conscious.
     """
 
+    start = time.perf_counter()
     cfg = get_profile(profile)
     http_cfg = get_http_config(profile)
     stealth_cfg = cfg.get("stealth", {})
@@ -31,6 +33,7 @@ def run(target: str, profile: str = "balanced") -> dict:
     data = {
         "module": "tech_fingerprint",
         "target": target,
+        "profile": profile,
         "technologies": {
             "server": None,
             "cdn": None,
@@ -40,6 +43,13 @@ def run(target: str, profile: str = "balanced") -> dict:
             "graphql": False,
         },
         "headers": {},
+        "metrics": {
+            "requests_attempted": 0,
+            "requests_successful": 0,
+            "errors": 0,
+            "graphql_probe_attempted": False,
+            "duration_seconds": 0.0,
+        },
     }
 
     session = requests.Session()
@@ -53,12 +63,16 @@ def run(target: str, profile: str = "balanced") -> dict:
     # Base request
     # -------------------------
     try:
+        data["metrics"]["requests_attempted"] += 1
         r = session.get(
             base_url,
             timeout=http_cfg["timeout"],
             allow_redirects=http_cfg["follow_redirects"]
         )
+        data["metrics"]["requests_successful"] += 1
     except Exception:
+        data["metrics"]["errors"] += 1
+        data["metrics"]["duration_seconds"] = round(time.perf_counter() - start, 4)
         return data
 
     headers = {k.lower(): v for k, v in r.headers.items()}
@@ -112,16 +126,20 @@ def run(target: str, profile: str = "balanced") -> dict:
     # -------------------------
     # Only in balanced / aggressive
     if tech_cfg.get("graphql", profile != "passive"):
+        data["metrics"]["graphql_probe_attempted"] = True
         try:
+            data["metrics"]["requests_attempted"] += 1
             g = session.post(
                 f"{base_url}/graphql",
                 json={"query": "{__typename}"},
                 timeout=http_cfg["timeout"],
                 allow_redirects=http_cfg["follow_redirects"],
             )
+            data["metrics"]["requests_successful"] += 1
             if g.status_code in (200, 400):
                 data["technologies"]["graphql"] = True
         except Exception:
-            pass
+            data["metrics"]["errors"] += 1
 
+    data["metrics"]["duration_seconds"] = round(time.perf_counter() - start, 4)
     return data
