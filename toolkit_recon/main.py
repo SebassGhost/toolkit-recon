@@ -34,7 +34,7 @@ def banner():
 
 def _normalize_argv(argv: list[str]) -> list[str]:
     if not argv:
-        return argv
+        return ["menu"]
 
     first = argv[0]
     if first in {"help", "-h", "--help"}:
@@ -136,6 +136,14 @@ def parse_args(argv: list[str] | None = None):
         dest="osint_user",
         default=None,
         help="Username para enriquecer recon con OSINT (Sherlock)",
+    )
+
+    menu = subparsers.add_parser("menu", aliases=["m"], help="Modo interactivo")
+    menu.add_argument(
+        "--profile",
+        choices=["passive", "balanced", "aggressive"],
+        default=None,
+        help="Perfil por defecto en el menu interactivo",
     )
 
     args = parser.parse_args(argv)
@@ -278,16 +286,140 @@ def cmd_recon_all(args):
         print(f"    osint perfiles encontrados: {osint_found}")
 
 
+def _prompt_profile(default: str = DEFAULT_PROFILE) -> str:
+    profile_map = {
+        "1": "passive",
+        "2": "balanced",
+        "3": "aggressive",
+    }
+    default_label = {
+        "passive": "1",
+        "balanced": "2",
+        "aggressive": "3",
+    }.get(default, "2")
+
+    while True:
+        print("\nSelecciona perfil:")
+        print("  1) passive")
+        print("  2) balanced")
+        print("  3) aggressive")
+        choice = input(f"Perfil [default {default_label}]: ").strip() or default_label
+        if choice in profile_map:
+            return profile_map[choice]
+        print(C.YELLOW + "[!] Opcion invalida" + C.RESET)
+
+
+def _prompt_target(label: str) -> str:
+    while True:
+        value = input(f"{label}: ").strip()
+        if value:
+            return value
+        print(C.YELLOW + "[!] Valor requerido" + C.RESET)
+
+
+def run_interactive_menu(default_profile: str = DEFAULT_PROFILE):
+    while True:
+        print(C.BLUE + "\n=== MENU PRINCIPAL ===" + C.RESET)
+        print("  1) Recon completo (recon-all)")
+        print("  2) Enumerar subdominios")
+        print("  3) Descubrir endpoints")
+        print("  4) Fingerprint de tecnologias")
+        print("  5) OSINT por username")
+        print("  0) Salir")
+
+        option = input("Elige una opcion: ").strip()
+        if option == "0":
+            print(C.GREEN + "[+] Saliendo..." + C.RESET)
+            return
+
+        try:
+            if option == "1":
+                target = _prompt_target("Dominio objetivo")
+                profile = _prompt_profile(default_profile)
+                enrich = input("Agregar OSINT username? [s/N]: ").strip().lower()
+                osint_user = (
+                    _prompt_target("Username")
+                    if enrich in {"s", "si", "y", "yes"}
+                    else None
+                )
+                cmd_recon_all(
+                    argparse.Namespace(
+                        command="recon-all",
+                        target=target,
+                        target_opt=None,
+                        profile=profile,
+                        osint_user=osint_user,
+                        global_profile=profile,
+                    )
+                )
+            elif option == "2":
+                target = _prompt_target("Dominio objetivo")
+                profile = _prompt_profile(default_profile)
+                cmd_subdomain(
+                    argparse.Namespace(
+                        command="subdomain",
+                        target=target,
+                        target_opt=None,
+                        profile=profile,
+                        osint_user=None,
+                        global_profile=profile,
+                    )
+                )
+            elif option == "3":
+                target = _prompt_target("Dominio/subdominio objetivo")
+                profile = _prompt_profile(default_profile)
+                cmd_endpoints(
+                    argparse.Namespace(
+                        command="endpoints",
+                        target=target,
+                        target_opt=None,
+                        profile=profile,
+                        osint_user=None,
+                        global_profile=profile,
+                    )
+                )
+            elif option == "4":
+                target = _prompt_target("Dominio/subdominio objetivo")
+                profile = _prompt_profile(default_profile)
+                cmd_tech(
+                    argparse.Namespace(
+                        command="tech",
+                        target=target,
+                        target_opt=None,
+                        profile=profile,
+                        osint_user=None,
+                        global_profile=profile,
+                    )
+                )
+            elif option == "5":
+                username = _prompt_target("Username objetivo")
+                profile = _prompt_profile(default_profile)
+                cmd_osint_user(
+                    argparse.Namespace(
+                        command="osint-user",
+                        target=username,
+                        target_opt=None,
+                        profile=profile,
+                        osint_user=None,
+                        global_profile=profile,
+                    )
+                )
+            else:
+                print(C.YELLOW + "[!] Opcion invalida" + C.RESET)
+        except ValueError as exc:
+            print(C.RED + f"[-] {exc}" + C.RESET)
+        except KeyboardInterrupt:
+            print("\n" + C.YELLOW + "[!] Operacion cancelada por usuario" + C.RESET)
+
+
 def main():
     banner()
     args = parse_args()
 
-    if not args.command:
-        print(C.RED + "[-] No command specified\n" + C.RESET)
-        sys.exit(1)
-
     try:
-        if args.command == "subdomain":
+        if args.command == "menu":
+            run_interactive_menu(default_profile=args.profile or DEFAULT_PROFILE)
+        elif args.command == "subdomain":
             cmd_subdomain(args)
         elif args.command == "endpoints":
             cmd_endpoints(args)
