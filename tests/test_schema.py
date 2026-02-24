@@ -19,7 +19,9 @@ def _load_recon_schema():
 @patch("toolkit_recon.recon.recon_all.tech_fingerprint_run")
 @patch("toolkit_recon.recon.recon_all.endpoint_discovery_run")
 @patch("toolkit_recon.recon.recon_all.subdomain_enum_run")
+@patch("toolkit_recon.recon.recon_all.domain_enum_run")
 def test_recon_all_output_matches_schema(
+    mock_domain,
     mock_subdomain,
     mock_endpoint,
     mock_tech,
@@ -27,6 +29,19 @@ def test_recon_all_output_matches_schema(
     _mock_save_full,
 ):
     jsonschema = pytest.importorskip("jsonschema")
+    mock_domain.return_value = {
+        "schema_version": SCHEMA_VERSION,
+        "module": "domain_enum",
+        "target": "example.com",
+        "profile": "balanced",
+        "count": 1,
+        "results": {
+            "domain": "example.com",
+            "records": {"A": ["1.1.1.1"], "AAAA": []},
+            "errors": [],
+        },
+        "metrics": {"errors": 0, "duration_seconds": 0.1},
+    }
     mock_subdomain.return_value = {
         "schema_version": SCHEMA_VERSION,
         "module": "subdomain_enum",

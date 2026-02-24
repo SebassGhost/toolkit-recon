@@ -2,11 +2,25 @@ import time
 from datetime import datetime
 
 from toolkit_recon import SCHEMA_VERSION
+from toolkit_recon.core.correlation import build_correlation
+from toolkit_recon.core.plugins import build_default_plugins
+from toolkit_recon.recon.domain_enum.domain_enum import run as domain_enum_run
 from toolkit_recon.recon.endpoint_discovery.endpoints import run as endpoint_discovery_run
 from toolkit_recon.recon.osint_username.username import run as osint_username_run
 from toolkit_recon.recon.subdomain_enum.sub_enum import run as subdomain_enum_run
 from toolkit_recon.recon.tech_fingerprint.fingerprint import run as tech_fingerprint_run
 from toolkit_recon.utils.output import save_full_recon, save_output
+
+
+def _subdomains_for_followup(target: str, subdomain_data: dict) -> list[str]:
+    subdomains = [
+        item.get("subdomain")
+        for item in subdomain_data.get("results", [])
+        if isinstance(item, dict) and item.get("subdomain")
+    ]
+    if target not in subdomains:
+        subdomains.insert(0, target)
+    return subdomains
 
 
 def run(target: str, profile: str = "balanced", osint_user: str | None = None) -> dict:
@@ -17,138 +31,79 @@ def run(target: str, profile: str = "balanced", osint_user: str | None = None) -
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "modules": {},
         "metrics": {},
+        "analysis": {},
     }
 
-    # =========================
-    # Subdomain Enumeration
-    # =========================
-    print("[*] Subdomain enumeration")
-    start = time.perf_counter()
-    try:
-        sub_data = subdomain_enum_run(target, profile=profile)
-        results["modules"]["subdomain_enum"] = sub_data
-        save_output(target, "subdomains", sub_data)
-    except Exception as e:
-        results["modules"]["subdomain_enum"] = {"error": str(e)}
-    sub_fallback_duration = round(time.perf_counter() - start, 4)
-    results["metrics"]["subdomain_enum"] = (
-        results["modules"]
-        .get("subdomain_enum", {})
-        .get("metrics", {"duration_seconds": sub_fallback_duration})
-    )
-    results["metrics"]["subdomain_enum"]["count"] = (
-        results["modules"].get("subdomain_enum", {}).get("count", 0)
-    )
-
-    subdomains = [
-        r["subdomain"]
-        for r in results["modules"]
-            .get("subdomain_enum", {})
-            .get("results", [])
-    ]
-
-    if target not in subdomains:
-        subdomains.insert(0, target)
-
-    # =========================
-    # Endpoint Discovery
-    # =========================
-    print("[*] Endpoint discovery")
-    endpoint_data = {}
-    endpoint_metrics = {
-        "targets_scanned": 0,
-        "total_paths": 0,
-        "attempted": 0,
-        "completed": 0,
-        "errors": 0,
-        "retried_requests": 0,
-        "duration_seconds": 0.0,
+    runners = {
+        "domain_enum": domain_enum_run,
+        "subdomain_enum": subdomain_enum_run,
+        "endpoint_discovery": endpoint_discovery_run,
+        "tech_fingerprint": tech_fingerprint_run,
+        "osint_username": osint_username_run,
     }
-    start = time.perf_counter()
+    plugins = build_default_plugins(runners)
+    context = {
+        "target": target,
+        "profile": profile,
+        "osint_user": osint_user,
+        "followup_targets": [target],
+    }
 
-    for sub in subdomains:
-        try:
-            data = endpoint_discovery_run(
-                sub,
-                profile=profile
-            )
-            endpoint_data[sub] = data
-            m = data.get("metrics", {})
-            endpoint_metrics["targets_scanned"] += 1
-            endpoint_metrics["total_paths"] += m.get("total_paths", 0)
-            endpoint_metrics["attempted"] += m.get("attempted", 0)
-            endpoint_metrics["completed"] += m.get("completed", 0)
-            endpoint_metrics["errors"] += m.get("errors", 0)
-            endpoint_metrics["retried_requests"] += m.get("retried_requests", 0)
-        except Exception as e:
-            endpoint_data[sub] = {"error": str(e)}
-
-    endpoint_metrics["duration_seconds"] = round(time.perf_counter() - start, 4)
-    results["modules"]["endpoint_discovery"] = endpoint_data
-    results["metrics"]["endpoint_discovery"] = endpoint_metrics
-    save_output(target, "endpoints", endpoint_data)
-
-    # =========================
-    # Tech Fingerprint
-    # =========================
-    print("[*] Tech fingerprint")
-    tech_data = {}
-    start = time.perf_counter()
-
-    for sub in subdomains:
-        try:
-            tech_data[sub] = tech_fingerprint_run(
-                sub,
-                profile=profile
-            )
-        except Exception as e:
-            tech_data[sub] = {"error": str(e)}
-
-    results["modules"]["tech_fingerprint"] = tech_data
-    tech_duration = round(time.perf_counter() - start, 4)
-    tech_requests_attempted = 0
-    tech_requests_successful = 0
-    tech_errors = 0
-    tech_graphql_probes = 0
-    for item in tech_data.values():
-        if not isinstance(item, dict):
+    for plugin in plugins:
+        if plugin.optional and not osint_user:
             continue
-        m = item.get("metrics", {})
-        tech_requests_attempted += m.get("requests_attempted", 0)
-        tech_requests_successful += m.get("requests_successful", 0)
-        tech_errors += m.get("errors", 0)
-        tech_graphql_probes += 1 if m.get("graphql_probe_attempted") else 0
 
-    results["metrics"]["tech_fingerprint"] = {
-        "duration_seconds": tech_duration,
-        "targets_scanned": len(tech_data),
-        "requests_attempted": tech_requests_attempted,
-        "requests_successful": tech_requests_successful,
-        "errors": tech_errors,
-        "graphql_probes_attempted": tech_graphql_probes,
-    }
-    save_output(target, "tech_fingerprint", tech_data)
-
-    # =========================
-    # OSINT Username (optional)
-    # =========================
-    if osint_user:
-        print("[*] OSINT username")
+        print(f"[*] {plugin.name}")
         start = time.perf_counter()
-        try:
-            osint_data = osint_username_run(osint_user, profile=profile)
-            results["modules"]["osint_username"] = osint_data
-            save_output(target, "osint_username", osint_data)
-        except Exception as e:
-            results["modules"]["osint_username"] = {"error": str(e)}
-        osint_metrics = (
-            results["modules"]
-            .get("osint_username", {})
-            .get("metrics", {})
-        )
-        osint_metrics["duration_seconds_total"] = round(time.perf_counter() - start, 4)
-        results["metrics"]["osint_username"] = osint_metrics
+
+        if plugin.scope == "target":
+            try:
+                data = plugin.runner(target, profile)
+            except Exception as exc:
+                data = {"error": str(exc)}
+
+            results["modules"][plugin.name] = data
+            results["metrics"][plugin.name] = plugin.aggregator(data, context)
+            results["metrics"][plugin.name]["duration_seconds_total"] = round(
+                time.perf_counter() - start, 4
+            )
+            save_output(target, plugin.output_name, data)
+
+            if plugin.name == "subdomain_enum" and isinstance(data, dict):
+                context["followup_targets"] = _subdomains_for_followup(target, data)
+
+        elif plugin.scope == "per_subdomain":
+            by_target = {}
+            for host in context["followup_targets"]:
+                try:
+                    by_target[host] = plugin.runner(host, profile)
+                except Exception as exc:
+                    by_target[host] = {"error": str(exc)}
+
+            results["modules"][plugin.name] = by_target
+            results["metrics"][plugin.name] = plugin.aggregator(by_target, context)
+            results["metrics"][plugin.name]["duration_seconds_total"] = round(
+                time.perf_counter() - start, 4
+            )
+            save_output(target, plugin.output_name, by_target)
+
+        elif plugin.scope == "optional_target":
+            try:
+                data = plugin.runner(osint_user or "", profile)
+            except Exception as exc:
+                data = {"error": str(exc)}
+
+            results["modules"][plugin.name] = data
+            results["metrics"][plugin.name] = plugin.aggregator(data, context)
+            results["metrics"][plugin.name]["duration_seconds_total"] = round(
+                time.perf_counter() - start, 4
+            )
+            save_output(target, plugin.output_name, data)
+
+    correlation = build_correlation(results)
+    results["analysis"]["correlation"] = correlation
+    save_output(target, "correlation", correlation)
 
     save_full_recon(target, results)
-
     return results
+

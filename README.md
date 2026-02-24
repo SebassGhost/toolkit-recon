@@ -7,6 +7,8 @@ Diseñado para ejecutar flujos reales de recon con:
 - perfiles de agresividad
 - salida JSON normalizada
 - metricas por modulo
+- sistema de plugins para orquestacion modular
+- correlacion automatica de hallazgos con scoring
 
 ## Aviso legal
 
@@ -101,6 +103,8 @@ Puntos clave:
 - Orquestador: `toolkit_recon/recon/recon_all.py`
 - Contrato de salida: `toolkit_recon/schema/recon.schema.json`
 - Persistencia: `toolkit_recon/utils/output.py`
+- Plugins: `toolkit_recon/core/plugins.py`
+- Correlacion: `toolkit_recon/core/correlation.py`
 
 ## Salida y esquema
 
